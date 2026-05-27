@@ -343,7 +343,14 @@ button:disabled{opacity:0.4;cursor:not-allowed}
       </div>
     </div>
     <div class="card">
-      <div style="font-size:13px;font-weight:500;margin-bottom:8px">🔗 Integrasi ResepTimer</div>
+      <div style="font-size:13px;font-weight:500;margin-bottom:8px">🗑️ Kelola Data Resep</div>
+      <p style="font-size:12px;color:var(--gray);margin-bottom:12px">Hapus resep percobaan / data dummy. Hati-hati, tidak bisa dibatalkan.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-sm btn-danger" onclick="deleteRxByDate('today')">Hapus resep hari ini</button>
+        <button class="btn-sm btn-danger" onclick="deleteRxAll()">Hapus SEMUA resep</button>
+      </div>
+      <div id="del-status" style="font-size:12px;color:var(--gray);margin-top:8px"></div>
+    </div>
       <div class="field"><label class="lbl">Path RTDB ResepTimer</label>
         <input id="rt-path" value="resep_antrian">
       </div>
@@ -508,9 +515,22 @@ function renderTmplBar(itemId){
   bar.innerHTML='';
   if(!S.templates.length){bar.innerHTML='<span style="font-size:11px;color:var(--gray)">Belum ada template tersimpan</span>';return;}
   S.templates.forEach(t=>{
-    const b=document.createElement('button');b.className='tmpl-chip';b.textContent=t.nama;
-    b.onclick=()=>applyTmpl(itemId,t);bar.appendChild(b);
+    const wrap=document.createElement('div');
+    wrap.style.cssText='display:inline-flex;align-items:center;gap:0;flex-shrink:0;border:0.5px solid var(--bd2);border-radius:20px;overflow:hidden;margin-right:6px';
+    const b=document.createElement('button');
+    b.style.cssText='padding:4px 10px;font-size:12px;border:none;border-radius:0;background:#fff';
+    b.textContent=t.nama;b.onclick=()=>applyTmpl(itemId,t);
+    const del=document.createElement('button');
+    del.style.cssText='padding:4px 7px;font-size:12px;border:none;border-left:0.5px solid var(--bd2);border-radius:0;background:#fff;color:var(--red)';
+    del.textContent='×';del.title='Hapus template';
+    del.onclick=e=>{e.stopPropagation();deleteTmpl(t.id,t.nama);};
+    wrap.appendChild(b);wrap.appendChild(del);bar.appendChild(wrap);
   });
+}
+async function deleteTmpl(id,nama){
+  if(!confirm(`Hapus template "${nama}"?`))return;
+  try{await db.collection('templates').doc(id).delete();toast('Template dihapus');loadTemplates();}
+  catch(e){toast('Gagal: '+e.message);}
 }
 function applyTmpl(itemId,t){
   const idx=S.rxItems.findIndex(i=>i._id===itemId);if(idx<0)return;
@@ -944,7 +964,31 @@ function renderHistory(){
 // ══════════════════════════════════════════
 // ADMIN
 // ══════════════════════════════════════════
-async function enterAdmin(){showView('admin');loadAdminStats();loadDocList();}
+async function deleteRxByDate(range){
+  if(!confirm('Yakin hapus resep '+range+'? Tidak bisa dibatalkan.'))return;
+  const st=$('del-status');st.textContent='Menghapus...';
+  try{
+    let snap;
+    if(range==='today'){
+      const today=new Date();today.setHours(0,0,0,0);
+      snap=await db.collection('prescriptions').where('created_at','>=',firebase.firestore.Timestamp.fromDate(today)).get();
+    }
+    const CHUNK=400;const docs=snap.docs;
+    for(let i=0;i<docs.length;i+=CHUNK){const b=db.batch();docs.slice(i,i+CHUNK).forEach(d=>b.delete(d.ref));await b.commit();}
+    st.textContent=`✅ ${docs.length} resep dihapus`;loadAdminStats();
+  }catch(e){st.textContent='Gagal: '+e.message;}
+}
+async function deleteRxAll(){
+  if(!confirm('HAPUS SEMUA RESEP?\nIni akan menghapus seluruh data resep. Benar-benar yakin?'))return;
+  if(!confirm('Konfirmasi sekali lagi — ini TIDAK BISA DIBATALKAN.'))return;
+  const st=$('del-status');st.textContent='Menghapus semua...';
+  try{
+    const snap=await db.collection('prescriptions').get();
+    const CHUNK=400;
+    for(let i=0;i<snap.docs.length;i+=CHUNK){const b=db.batch();snap.docs.slice(i,i+CHUNK).forEach(d=>b.delete(d.ref));await b.commit();}
+    st.textContent=`✅ ${snap.docs.length} resep dihapus`;loadAdminStats();
+  }catch(e){st.textContent='Gagal: '+e.message;}
+}
 async function loadAdminStats(){
   try{
     const[docs,drugs]=await Promise.all([db.collection('doctors').get(),db.collection('drug_master').get()]);
