@@ -478,8 +478,17 @@ async function verifyPin(){
   if(type==='apotek')ok=S.pinVal===PIN_APOTEK;
   else if(type==='admin')ok=S.pinVal===PIN_ADMIN;
   else ok=S.pinVal===(data?.pin||'');
-  if(ok){closePin();S.user={type,data};if(type==='dokter')enterDokter();else if(type==='apotek')enterApotek();else enterAdmin();}
-  else{$('pin-err').textContent='PIN salah.';S.pinVal='';refreshDots();setTimeout(()=>$('pin-err').textContent='',1500);}
+  if(ok){
+    closePin();S.user={type,data};
+    try{
+      if(type==='dokter')enterDokter();
+      else if(type==='apotek')enterApotek();
+      else if(type==='admin')enterAdmin();
+    }catch(e){toast('Error masuk: '+e.message);console.error('login error:',e);}
+  }else{
+    $('pin-err').textContent='PIN salah.';S.pinVal='';refreshDots();
+    setTimeout(()=>$('pin-err').textContent='',1500);
+  }
 }
 function logout(){if(S.qUnsub){S.qUnsub();S.qUnsub=null;}S.user=null;showView('login');loadDoctors();}
 
