@@ -494,11 +494,14 @@ function resetForm(){
 async function loadTemplates(){
   if(!S.user?.data?.id)return;
   try{
-    const snap=await db.collection('templates').where('doctor_id','==',S.user.data.id).orderBy('nama').get();
-    S.templates=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // Tanpa orderBy — hindari composite index requirement
+    const snap=await db.collection('templates').where('doctor_id','==',S.user.data.id).get();
+    S.templates=snap.docs.map(d=>({id:d.id,...d.data()}))
+      .sort((a,b)=>(a.nama||'').localeCompare(b.nama||''));
     // Refresh semua template bar yang sedang tampil
     S.rxItems.filter(i=>i.tipe==='racikan').forEach(i=>renderTmplBar(i._id));
-  }catch(e){console.error('tmpl:',e);}
+    console.log('Templates loaded:',S.templates.length);
+  }catch(e){console.error('tmpl error:',e);toast('Gagal load template: '+e.message);}
 }
 function renderTmplBar(itemId){
   const bar=$('tb-'+itemId);if(!bar)return;
@@ -861,8 +864,9 @@ function printRx(rxId){
   $('print-area').innerHTML=`<div class="rx-print">
     <div class="p-hdr">
       <div class="p-doc-name">${doc.nama||''}</div>
-      <div class="p-doc-det">SIP: ${doc.sip||'-'}</div>
-      <div class="p-doc-det">${doc.alamat_praktik||''}</div>
+      ${doc.spesialisasi?`<div class="p-doc-det">${doc.spesialisasi}</div>`:''}
+      <div class="p-doc-det">SIP: ${doc.sip||'(belum diisi)'}</div>
+      <div class="p-doc-det">${doc.alamat_praktik||'(alamat praktik belum diisi)'}</div>
       ${doc.hari_praktik?`<div class="p-doc-det">Praktik: ${doc.hari_praktik}</div>`:''}
     </div>
     <div class="p-dateline">Timika, ${fmtDate(rx.created_at)} &nbsp;&nbsp; No: ${rx.nomor_resep||''}</div>
