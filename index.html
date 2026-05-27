@@ -496,6 +496,8 @@ async function loadTemplates(){
   try{
     const snap=await db.collection('templates').where('doctor_id','==',S.user.data.id).orderBy('nama').get();
     S.templates=snap.docs.map(d=>({id:d.id,...d.data()}));
+    // Refresh semua template bar yang sedang tampil
+    S.rxItems.filter(i=>i.tipe==='racikan').forEach(i=>renderTmplBar(i._id));
   }catch(e){console.error('tmpl:',e);}
 }
 function renderTmplBar(itemId){
@@ -668,7 +670,7 @@ async function submitResep(){
 // ══════════════════════════════════════════
 // APOTEK
 // ══════════════════════════════════════════
-function enterApotek(){showView('apotek');startQueue();}
+function enterApotek(){showView('apotek');ensureDrugs();startQueue();}
 function setFilter(f,el){S.qFilter=f;document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');renderQueue();}
 function startQueue(){
   if(S.qUnsub)S.qUnsub();
