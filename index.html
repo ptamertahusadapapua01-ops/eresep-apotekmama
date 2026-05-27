@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>E-Resep · Apotek Mama</title>
+<meta name="theme-color" content="#0F6E56">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal:#0F6E56;--teal-d:#085041;--teal-l:#E1F5EE;--teal-m:#1D9E75;
+  --amber:#BA7517;--amber-l:#FAEEDA;
+  --blue:#185FA5;--blue-l:#E6F1FB;
+  --red:#A32D2D;--red-l:#FCEBEB;
+  --green:#3B6D11;--green-l:#EAF3DE;
+  --gray:#5F5E5A;--gray-l:#F1EFE8;
+  --bd:rgba(0,0,0,0.1);--bd2:rgba(0,0,0,0.2);
+  --r:12px;--r-sm:8px
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8f7f4;color:#1a1a1a;font-size:14px;min-height:100vh}
+.view{display:none;min-height:100vh;flex-direction:column}
+.view.active{display:flex}
+header{background:#fff;border-bottom:0.5px solid var(--bd);padding:12px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10}
+main{flex:1;padding:16px;max-width:800px;margin:0 auto;width:100%}
+.card{background:#fff;border:0.5px solid var(--bd);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.card-title{font-size:14px;font-weight:500;margin-bottom:12px}
+label.lbl{font-size:11px;color:var(--gray);display:block;margin-bottom:4px}
+input,select,textarea{width:100%;padding:8px 10px;border:0.5px solid var(--bd2);border-radius:var(--r-sm);font-size:13px;font-family:inherit;background:#fff;color:#1a1a1a;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--teal-m)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.field{margin-bottom:10px}
+button{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:0.5px solid var(--bd2);border-radius:var(--r-sm);font-size:13px;font-family:inherit;cursor:pointer;background:#fff;color:#1a1a1a}
+button:hover{background:var(--gray-l)}
+.btn-primary{background:var(--teal);color:#fff;border-color:var(--teal-d)}
+.btn-primary:hover{background:var(--teal-d)}
+.btn-sm{padding:4px 10px;font-size:12px}
+button:disabled{opacity:0.4;cursor:not-allowed}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.badge-menunggu{background:var(--amber-l);color:var(--amber)}
+.badge-diproses{background:var(--blue-l);color:var(--blue)}
+.badge-selesai{background:var(--green-l);color:var(--green)}
+
+/* LOGIN */
+#v-login{background:var(--teal-l);justify-content:center;align-items:center;padding:20px;gap:0}
+.login-box{width:100%;max-width:520px}
+.login-header{text-align:center;margin-bottom:24px}
+.login-logo{font-size:36px;margin-bottom:8px}
+.login-header h2{font-size:20px;font-weight:500;color:var(--teal-d)}
+.login-header p{font-size:13px;color:var(--gray);margin-top:4px}
+.doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:12px}
+.doc-card{background:#fff;border:0.5px solid var(--bd);border-radius:var(--r);padding:16px 12px;text-align:center;cursor:pointer;transition:box-shadow .15s;border-top:3px solid var(--teal-m)}
+.doc-card:hover{box-shadow:0 4px 12px rgba(0,0,0,0.1)}
+.doc-avatar{width:48px;height:48px;border-radius:50%;background:var(--teal-l);color:var(--teal-d);font-size:16px;font-weight:500;display:flex;align-items:center;justify-content:center;margin:0 auto 8px}
+.doc-card h3{font-size:12px;font-weight:500;line-height:1.4}
+.doc-card p{font-size:11px;color:var(--gray);margin-top:2px}
+.login-others{display:flex;gap:8px}
+.login-others button{flex:1;justify-content:center;padding:11px}
+
+/* PIN MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.show{display:flex}
+.modal{background:#fff;border-radius:var(--r);padding:24px;width:100%;max-width:300px;text-align:center}
+.modal h3{font-size:15px;font-weight:500;margin-bottom:2px}
+.modal p{font-size:12px;color:var(--gray);margin-bottom:16px}
+.pin-dots{display:flex;gap:12px;justify-content:center;margin-bottom:16px}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--bd2)}
+.pin-dot.filled{background:var(--teal);border-color:var(--teal)}
+.pin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
+.pin-btn{padding:14px;font-size:18px;font-weight:400;border:0.5px solid var(--bd);border-radius:var(--r-sm);cursor:pointer;background:#fff;text-align:center;justify-content:center}
+.pin-btn:hover{background:var(--gray-l)}
+.pin-error{color:var(--red);font-size:12px;min-height:16px}
+
+/* TEMPLATE BAR */
+.tmpl-bar{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px;scrollbar-width:thin}
+.tmpl-btn{white-space:nowrap;padding:5px 14px;font-size:12px;border:0.5px solid var(--bd2);border-radius:20px;cursor:pointer;background:#fff;flex-shrink:0}
+.tmpl-btn.active{background:var(--teal-l);color:var(--teal-d);border-color:var(--teal-m);font-weight:500}
+
+/* TYPE TABS */
+.type-tabs{display:flex;gap:4px;margin-bottom:16px;background:#fff;padding:4px;border-radius:var(--r-sm);border:0.5px solid var(--bd)}
+.type-tab{flex:1;padding:8px;text-align:center;font-size:13px;border-radius:6px;cursor:pointer;border:none;background:transparent;font-family:inherit}
+.type-tab.active{background:var(--teal);color:#fff;font-weight:500}
+
+/* DRUG ROWS */
+.drug-hdr{display:grid;gap:6px;font-size:11px;color:var(--gray);padding:4px 0 6px;border-bottom:0.5px solid var(--bd)}
+.drug-row{display:grid;gap:6px;align-items:center;padding:7px 0;border-bottom:0.5px solid var(--bd)}
+.hdr-racikan,.row-racikan{grid-template-columns:2fr 1fr 60px 28px}
+.hdr-tunggal,.row-tunggal{grid-template-columns:1.5fr 1fr 1fr 1.5fr 28px}
+
+/* APOTEK QUEUE */
+.filter-tabs{display:flex;gap:4px;background:#fff;padding:4px;border-radius:var(--r-sm);border:0.5px solid var(--bd);margin-bottom:12px}
+.filter-tab{flex:1;padding:7px;text-align:center;font-size:12px;border-radius:6px;cursor:pointer;border:none;background:transparent;font-family:inherit}
+.filter-tab.active{background:var(--teal);color:#fff}
+.rx-card{background:#fff;border:0.5px solid var(--bd);border-radius:var(--r);margin-bottom:10px;overflow:hidden}
+.rx-hdr{padding:12px 14px;border-bottom:0.5px solid var(--bd);display:flex;align-items:center;gap:8px}
+.rx-body{padding:12px 14px}
+.meta{font-size:11px;color:var(--gray);margin-top:2px}
+.rx-num{font-size:11px;font-weight:500;color:var(--teal-d);margin-left:auto;text-align:right}
+
+/* APO DRUG ROWS */
+.apo-hdr{display:grid;grid-template-columns:1.5fr 1fr 1.6fr 1fr 1fr;gap:6px;font-size:11px;color:var(--gray);padding:4px 0 6px;border-bottom:0.5px solid var(--bd)}
+.apo-row{display:grid;grid-template-columns:1.5fr 1fr 1.6fr 1fr 1fr;gap:6px;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--bd)}
+
+/* ADMIN */
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.stat-card{background:var(--gray-l);border-radius:var(--r-sm);padding:12px;text-align:center}
+.stat-n{font-size:22px;font-weight:500;color:var(--teal-d)}
+.stat-l{font-size:11px;color:var(--gray);margin-top:2px}
+
+/* MISC */
+.warn-box{background:var(--red-l);border:0.5px solid var(--red);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--red);margin-top:8px;display:none}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:200;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+.empty{text-align:center;padding:48px 20px;color:var(--gray)}
+.empty-icon{font-size:36px;margin-bottom:8px}
+.note-box{background:var(--amber-l);border-radius:var(--r-sm);padding:8px 10px;font-size:11px;color:var(--amber);margin-top:8px}
+
+@media(max-width:520px){
+  .row3{grid-template-columns:1fr 1fr}
+  .hdr-tunggal,.row-tunggal{grid-template-columns:1fr 1fr 28px}
+  .apo-hdr,.apo-row{grid-template-columns:1fr 1fr;font-size:11px}
+}
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div id="toast" class="toast"></div>
+
+<!-- PIN MODAL -->
+<div id="pin-modal" class="modal-overlay">
+  <div class="modal">
+    <h3 id="pin-title">Masuk</h3>
+    <p id="pin-sub">PIN 4 digit</p>
+    <div class="pin-dots">
+      <div class="pin-dot" id="d0"></div><div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div><div class="pin-dot" id="d3"></div>
+    </div>
+    <div class="pin-grid" id="pin-grid"></div>
+    <div class="pin-error" id="pin-err"></div>
+    <button class="btn-sm" onclick="closePin()" style="width:100%;justify-content:center;margin-top:6px">Batal</button>
+  </div>
+</div>
+
+<!-- ===== LOGIN ===== -->
+<div id="v-login" class="view active">
+  <div class="login-box">
+    <div class="login-header">
+      <div class="login-logo">💊</div>
+      <h2>E-Resep Apotek Mama</h2>
+      <p>Pilih dokter atau login sebagai apoteker</p>
+    </div>
+    <div class="doc-grid" id="doc-grid">
+      <div style="font-size:12px;color:var(--gray);text-align:center;padding:20px;grid-column:1/-1">Memuat dokter...</div>
+    </div>
+    <div class="login-others">
+      <button onclick="openPin('apotek',null)">💊 Apotek</button>
+      <button onclick="openPin('admin',null)">⚙️ Admin</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DOKTER ===== -->
+<div id="v-dokter" class="view">
+  <header>
+    <div style="flex:1">
+      <div style="font-size:14px;font-weight:500" id="hdr-doc-nama">Dokter</div>
+      <div style="font-size:11px;color:var(--gray)" id="hdr-doc-sp"></div>
+    </div>
+    <button class="btn-sm" onclick="logout()">Keluar</button>
+  </header>
+  <main>
+    <!-- DATA PASIEN -->
+    <div class="card">
+      <div class="card-title">👤 Data Pasien</div>
+      <div class="row2">
+        <div class="field"><label class="lbl">Nama Lengkap *</label><input id="p-nama" placeholder="Nama pasien"></div>
+        <div class="field"><label class="lbl">No. Telepon</label><input id="p-telp" type="tel" placeholder="08xx"></div>
+      </div>
+      <div class="row3">
+        <div class="field"><label class="lbl">Usia *</label><input id="p-usia" placeholder="cth: 3 tahun"></div>
+        <div class="field"><label class="lbl">BB (kg)</label><input id="p-bb" type="number" placeholder="14" min="0"></div>
+        <div class="field"><label class="lbl">Jenis Kelamin</label>
+          <select id="p-jk"><option value="">Pilih</option><option value="L">Laki-laki</option><option value="P">Perempuan</option></select>
+        </div>
+      </div>
+      <div class="field"><label class="lbl">Alamat</label><input id="p-alamat" placeholder="Alamat (opsional)"></div>
+    </div>
+
+    <!-- TIPE RESEP -->
+    <div class="type-tabs">
+      <button class="type-tab active" id="tab-racikan" onclick="setType('racikan')">🧪 Racikan / Puyer</button>
+      <button class="type-tab" id="tab-tunggal" onclick="setType('tunggal')">💊 Obat Tunggal</button>
+    </div>
+
+    <!-- RACIKAN -->
+    <div id="sec-racikan">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <span style="font-size:13px;font-weight:500">Template Racikan</span>
+          <button class="btn-sm" onclick="newTemplate()">+ Baru</button>
+        </div>
+        <div class="tmpl-bar" id="tmpl-bar">
+          <span style="font-size:12px;color:var(--gray)">Belum ada template</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="field"><label class="lbl">Nama Racikan *</label><input id="r-nama" placeholder="cth: Puyer Batuk Pilek 1"></div>
+        <div class="row3">
+          <div class="field"><label class="lbl">Jumlah Bungkus *</label><input id="r-bungkus" type="number" value="10" min="1"></div>
+          <div class="field"><label class="lbl">Frekuensi</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input id="r-freq" type="number" value="3" min="1" max="6" style="flex:1">
+              <span style="font-size:12px;color:var(--gray);white-space:nowrap">x/hari</span>
+            </div>
+          </div>
+          <div class="field"><label class="lbl">Per Kali Minum</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input id="r-dose" type="number" value="1" min="1" style="flex:1">
+              <span style="font-size:12px;color:var(--gray)">bgs</span>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="lbl">Sediaan</label>
+          <div style="display:flex;gap:14px;padding-top:4px;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px"><input type="checkbox" id="sd-puyer" checked> Puyer</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px"><input type="checkbox" id="sd-kapsul"> Kapsul</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:13px"><input type="checkbox" id="sd-salep"> Salep/Krim</label>
+          </div>
+        </div>
+        <div style="border-top:0.5px solid var(--bd);padding-top:12px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span style="font-size:13px;font-weight:500">Komponen Obat</span>
+            <button class="btn-sm" onclick="addRDrug()">+ Tambah Obat</button>
+          </div>
+          <div class="drug-hdr hdr-racikan">
+            <span>Nama Obat</span><span>Dosis/bungkus</span><span>Unit</span><span></span>
+          </div>
+          <div id="r-drugs"></div>
+          <div style="margin-top:6px;font-size:11px;color:var(--gray);display:flex;align-items:center;gap:4px">
+            ℹ️ Sediaan yang tersedia akan dipilih apoteker
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TUNGGAL -->
+    <div id="sec-tunggal" style="display:none">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:500">Daftar Obat</span>
+          <button class="btn-sm" onclick="addTDrug()">+ Tambah Obat</button>
+        </div>
+        <div class="drug-hdr hdr-tunggal">
+          <span>Nama Obat</span><span>Dosis</span><span>Frekuensi</span><span>Instruksi</span><span></span>
+        </div>
+        <div id="t-drugs"></div>
+      </div>
+    </div>
+
+    <!-- CATATAN -->
+    <div class="card">
+      <div class="field"><label class="lbl">Catatan untuk Apoteker (opsional)</label>
+        <textarea id="r-note" rows="2" placeholder="Instruksi atau catatan khusus..."></textarea>
+      </div>
+    </div>
+
+    <!-- ACTIONS -->
+    <div style="display:flex;gap:8px;margin-bottom:32px">
+      <button onclick="saveTemplate()" style="flex:1;justify-content:center">💾 Simpan Template</button>
+      <button class="btn-primary" onclick="submitResep()" style="flex:2;justify-content:center">📤 Kirim ke Apotek</button>
+    </div>
+  </main>
+</div>
+
+<!-- ===== APOTEK ===== -->
+<div id="v-apotek" class="view">
+  <header>
+    <div style="flex:1">
+      <div style="font-size:14px;font-weight:500">💊 Apotek Mama</div>
+      <div style="font-size:11px;color:var(--gray)" id="apo-count">Antrian Resep</div>
+    </div>
+    <button class="btn-sm" onclick="logout()">Keluar</button>
+  </header>
+  <main>
+    <div class="filter-tabs">
+      <button class="filter-tab active" onclick="setFilter('semua',this)">Semua</button>
+      <button class="filter-tab" onclick="setFilter('menunggu',this)">Menunggu</button>
+      <button class="filter-tab" onclick="setFilter('diproses',this)">Diproses</button>
+      <button class="filter-tab" onclick="setFilter('selesai',this)">Selesai</button>
+    </div>
+    <div id="queue"></div>
+  </main>
+</div>
+
+<!-- ===== ADMIN ===== -->
+<div id="v-admin" class="view">
+  <header>
+    <div style="font-size:14px;font-weight:500;flex:1">⚙️ Admin</div>
+    <button class="btn-sm" onclick="logout()">Keluar</button>
+  </header>
+  <main>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-n" id="st-d">-</div><div class="stat-l">Dokter</div></div>
+      <div class="stat-card"><div class="stat-n" id="st-o">-</div><div class="stat-l">Master Obat</div></div>
+      <div class="stat-card"><div class="stat-n" id="st-r">-</div><div class="stat-l">Resep Hari Ini</div></div>
+    </div>
+
+    <!-- DOKTER -->
+    <div class="card">
+      <div class="card-title" style="display:flex;justify-content:space-between">
+        <span>👨‍⚕️ Manajemen Dokter</span>
+        <button class="btn-sm" onclick="showDocForm()">+ Tambah</button>
+      </div>
+      <div id="doc-list"><div style="font-size:12px;color:var(--gray)">Memuat...</div></div>
+    </div>
+
+    <div class="card" id="doc-form" style="display:none;border-color:var(--teal-m)">
+      <div class="card-title" id="doc-form-title">Tambah Dokter</div>
+      <input type="hidden" id="df-id">
+      <div class="row2">
+        <div class="field"><label class="lbl">Nama (dengan gelar) *</label><input id="df-nama" placeholder="dr. Nama, Sp.X"></div>
+        <div class="field"><label class="lbl">Spesialisasi</label><input id="df-sp" placeholder="Anak / Umum / dll"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label class="lbl">Inisial (2–3 huruf) *</label><input id="df-init" maxlength="3" placeholder="CA"></div>
+        <div class="field"><label class="lbl">PIN 4 digit *</label><input id="df-pin" type="password" maxlength="4" placeholder="****"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-primary" onclick="saveDoc()" style="flex:1;justify-content:center">Simpan</button>
+        <button onclick="hideDocForm()" style="flex:1;justify-content:center">Batal</button>
+      </div>
+    </div>
+
+    <!-- CSV IMPORT -->
+    <div class="card">
+      <div class="card-title">📦 Import Master Obat (Farmacare CSV)</div>
+      <p style="font-size:12px;color:var(--gray);margin-bottom:12px">
+        Upload file CSV export dari Farmacare. Semua data master obat sebelumnya akan ditimpa.
+      </p>
+      <input type="file" id="csv-in" accept=".csv,.txt" onchange="handleCsv(this)">
+      <div id="csv-prev" style="display:none;margin-top:12px">
+        <div style="font-size:12px;margin-bottom:8px">
+          Terdeteksi: <strong id="csv-total" style="color:var(--teal-d)"></strong>
+          <span id="csv-racikan-info" style="color:var(--gray)"></span>
+        </div>
+        <div style="border:0.5px solid var(--bd);border-radius:var(--r-sm);overflow:hidden;max-height:220px;overflow-y:auto;margin-bottom:10px">
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <thead>
+              <tr style="background:var(--gray-l);position:sticky;top:0">
+                <th style="padding:6px 8px;text-align:left;font-weight:500">Nama Bersih</th>
+                <th style="padding:6px 8px;text-align:left;font-weight:500">Kekuatan</th>
+                <th style="padding:6px 8px;text-align:left;font-weight:500">Satuan</th>
+                <th style="padding:6px 8px;text-align:right;font-weight:500">Stok</th>
+              </tr>
+            </thead>
+            <tbody id="csv-tbody"></tbody>
+          </table>
+        </div>
+        <button class="btn-primary" onclick="importDrugs()" style="width:100%;justify-content:center">
+          ✅ Import ke Database
+        </button>
+      </div>
+    </div>
+
+    <!-- RESEPTIMER CONFIG -->
+    <div class="card">
+      <div class="card-title">🔗 Integrasi ResepTimer</div>
+      <p style="font-size:12px;color:var(--gray);margin-bottom:10px">
+        Saat apoteker klik "Terima & Proses", data resep akan dikirim ke ResepTimer RTDB.
+      </p>
+      <div class="field">
+        <label class="lbl">Path RTDB ResepTimer</label>
+        <input id="rt-path" value="resep_antrian" placeholder="resep_antrian">
+      </div>
+      <button class="btn-sm" onclick="toast('Path tersimpan ✓')">Simpan</button>
+    </div>
+  </main>
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+<script>
+// ══════════════════════════════════════════
+// KONFIGURASI — Ganti dengan nilai project Firebase kamu
+// ══════════════════════════════════════════
+const FB_CONFIG = {
+  apiKey:            "AIzaSyBC-cyrsJzdHQkPdVg5t-8LvhyDaNBv7LY",
+  authDomain:        "eresepmama.firebaseapp.com",
+  projectId:         "eresepmama",
+  storageBucket:     "eresepmama.firebasestorage.app",
+  messagingSenderId: "268997414403",
+  appId:             "1:268997414403:web:e512f984dfc825637b0836"
+};
+
+// ResepTimer — dari project ResepTimer yang sudah ada
+const RT_RTDB_URL = "https://reseptimer-default-rtdb.asia-southeast1.firebasedatabase.app";
+
+// PIN untuk Apotek dan Admin (ganti sesuai kebutuhan)
+const PIN_APOTEK = "1234";
+const PIN_ADMIN  = "0000";
+
+// ══════════════════════════════════════════
+// FIREBASE INIT
+// ══════════════════════════════════════════
+firebase.initializeApp(FB_CONFIG);
+const db = firebase.firestore();
+
+let rtdb = null;
+try {
+  const rtApp = firebase.initializeApp({ databaseURL: RT_RTDB_URL }, 'reseptimer');
+  rtdb = rtApp.database();
+} catch(e) { console.log('ResepTimer RTDB tidak dikonfigurasi'); }
+
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+const S = {
+  user: null,       // { type, data }
+  pinTarget: null,
+  pinVal: '',
+  rxType: 'racikan',
+  rDrugs: [],       // racikan drug list
+  tDrugs: [],       // tunggal drug list
+  templates: [],
+  activeTmpl: null,
+  qFilter: 'semua',
+  qUnsub: null,
+  prescriptions: [],
+  masterDrugs: [],  // obat racikan dari Firestore
+  csvParsed: []
+};
+
+// ══════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════
+const $ = id => document.getElementById(id);
+
+function toast(msg, ms=2500) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), ms);
+}
+
+function showView(v) {
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  $('v-' + v).classList.add('active');
+}
+
+function nomorResep() {
+  const d = new Date();
+  const s = d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+  return 'RX-' + s + '-' + Math.floor(Math.random()*900+100);
+}
+
+function fmtTs(ts) {
+  if (!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+}
+
+// ── Drug Name Parser ──
+function parseDrugName(raw) {
+  const m = raw.match(/(\d+[,.]?\d*)\s*(MG|MCG|IU|ML|GRAM|G)\b/i);
+  const kekuatan = m ? parseFloat(m[1].replace(',', '.')) : null;
+  const kUnit    = m ? m[2].toUpperCase().replace('GRAM','G') : 'MG';
+  let nama = raw
+    .replace(/\d+[,.]?\d*\s*(MG|MCG|IU|ML|GRAM|G)\b/gi, '')
+    .replace(/\b(TAB|TABLET|KAPSUL|CAPSUL|CAPS|KAPLET|CHEWTAB|SYR|SYRUP|SIRUP|SUSP|SUSPENSI|DROP|DROPS|ORAL|INJ|INJEKSI|SALEP|CREAM|KRIM|GEL|OINT|LOZ|FCT|FORTE|DROPS?)\b/gi, '')
+    .replace(/\b(HJ|PIM|DEXA|NOVA|IFI|MERSI|KF|BERNO|FM|NUFARINDO|AFI|IFARS|SAMPHARINDO|MEPRO|OGB|OTSU|DKTI|LAPI|PROMED|KIMIA|DV)\b/gi, '')
+    .replace(/[^a-zA-Z0-9\s\-]/g, ' ').replace(/\s+/g,' ').trim();
+  return { nama, kekuatan, kUnit };
+}
+
+const SATUAN_SOLID = ['tablet','tab','kapsul','capsul','caps','kaplet','butir','chewtab','fct'];
+const isSolid = s => SATUAN_SOLID.includes((s||'').toLowerCase().trim());
+
+// ══════════════════════════════════════════
+// LOGIN / PIN
+// ══════════════════════════════════════════
+async function loadDoctors() {
+  const g = $('doc-grid');
+  g.innerHTML = '<div style="font-size:12px;color:var(--gray);text-align:center;padding:20px;grid-column:1/-1">Memuat...</div>';
+  try {
+    const snap = await db.collection('doctors').orderBy('nama').get();
+    g.innerHTML = '';
+    if (snap.empty) {
+      g.innerHTML = '<div style="font-size:12px;color:var(--gray);text-align:center;padding:20px;grid-column:1/-1">Belum ada dokter.<br>Masuk sebagai Admin untuk menambah.</div>';
+      return;
+    }
+    snap.forEach(doc => {
+      const d = doc.data();
+      const el = document.createElement('div');
+      el.className = 'doc-card';
+      el.onclick = () => openPin('dokter', { id: doc.id, ...d });
+      el.innerHTML = `<div class="doc-avatar">${d.inisial||'?'}</div>
+        <h3>${d.nama}</h3><p>${d.spesialisasi||'Umum'}</p>`;
+      g.appendChild(el);
+    });
+  } catch(e) {
+    g.innerHTML = '<div style="font-size:12px;color:var(--red);text-align:center;padding:20px;grid-column:1/-1">Gagal memuat. Cek konfigurasi Firebase.</div>';
+  }
+}
+
+function openPin(type, data) {
+  S.pinTarget = { type, data };
+  S.pinVal = '';
+  $('pin-title').textContent = type === 'apotek' ? 'Apotek Mama' : type === 'admin' ? 'Admin' : data.nama;
+  $('pin-sub').textContent = 'Masukkan PIN 4 digit';
+  $('pin-err').textContent = '';
+  refreshDots();
+  buildPinPad();
+  $('pin-modal').classList.add('show');
+}
+
+function closePin() { $('pin-modal').classList.remove('show'); }
+
+function buildPinPad() {
+  const g = $('pin-grid');
+  g.innerHTML = '';
+  [1,2,3,4,5,6,7,8,9,'',0,'⌫'].forEach(n => {
+    const b = document.createElement('button');
+    b.className = 'pin-btn';
+    b.textContent = n;
+    if (n === '') { b.style.visibility = 'hidden'; }
+    else b.onclick = () => pinKey(n);
+    g.appendChild(b);
+  });
+}
+
+function pinKey(n) {
+  if (n === '⌫') { S.pinVal = S.pinVal.slice(0,-1); refreshDots(); return; }
+  if (S.pinVal.length >= 4) return;
+  S.pinVal += n;
+  refreshDots();
+  if (S.pinVal.length === 4) setTimeout(verifyPin, 120);
+}
+
+function refreshDots() {
+  for (let i = 0; i < 4; i++)
+    $('d'+i).classList.toggle('filled', i < S.pinVal.length);
+}
+
+async function verifyPin() {
+  const { type, data } = S.pinTarget;
+  let ok = false;
+  if (type === 'apotek') ok = S.pinVal === PIN_APOTEK;
+  else if (type === 'admin') ok = S.pinVal === PIN_ADMIN;
+  else ok = S.pinVal === (data.pin || '');
+
+  if (ok) {
+    closePin();
+    S.user = { type, data };
+    if (type === 'dokter') enterDokter();
+    else if (type === 'apotek') enterApotek();
+    else enterAdmin();
+  } else {
+    $('pin-err').textContent = 'PIN salah. Coba lagi.';
+    S.pinVal = '';
+    refreshDots();
+    setTimeout(() => $('pin-err').textContent = '', 1500);
+  }
+}
+
+function logout() {
+  if (S.qUnsub) { S.qUnsub(); S.qUnsub = null; }
+  S.user = null;
+  showView('login');
+  loadDoctors();
+}
+
+// ══════════════════════════════════════════
+// DOKTER
+// ══════════════════════════════════════════
+function enterDokter() {
+  const d = S.user.data;
+  $('hdr-doc-nama').textContent = d.nama;
+  $('hdr-doc-sp').textContent = d.spesialisasi || '';
+  resetForm();
+  loadTemplates();
+  showView('dokter');
+}
+
+function resetForm() {
+  ['p-nama','p-telp','p-usia','p-alamat','r-nama','r-note'].forEach(id => $(id).value = '');
+  $('p-bb').value = '';
+  $('p-jk').value = '';
+  $('r-bungkus').value = 10;
+  $('r-freq').value = 3;
+  $('r-dose').value = 1;
+  $('sd-puyer').checked = true;
+  $('sd-kapsul').checked = false;
+  $('sd-salep').checked = false;
+  S.rDrugs = [];
+  S.tDrugs = [];
+  S.activeTmpl = null;
+  renderRDrugs();
+  renderTDrugs();
+  setType('racikan');
+}
+
+function setType(t) {
+  S.rxType = t;
+  $('tab-racikan').classList.toggle('active', t === 'racikan');
+  $('tab-tunggal').classList.toggle('active', t === 'tunggal');
+  $('sec-racikan').style.display = t === 'racikan' ? '' : 'none';
+  $('sec-tunggal').style.display = t === 'tunggal' ? '' : 'none';
+}
+
+// ── Templates ──
+async function loadTemplates() {
+  const docId = S.user.data.id;
+  try {
+    const snap = await db.collection('templates')
+      .where('doctor_id','==',docId).orderBy('nama').get();
+    S.templates = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    renderTmplBar();
+  } catch(e) { console.error(e); }
+}
+
+function renderTmplBar() {
+  const bar = $('tmpl-bar');
+  bar.innerHTML = '';
+  if (!S.templates.length) {
+    bar.innerHTML = '<span style="font-size:12px;color:var(--gray)">Belum ada template</span>';
+    return;
+  }
+  S.templates.forEach(t => {
+    const b = document.createElement('button');
+    b.className = 'tmpl-btn' + (S.activeTmpl === t.id ? ' active' : '');
+    b.textContent = t.nama;
+    b.onclick = () => applyTmpl(t);
+    bar.appendChild(b);
+  });
+}
+
+function applyTmpl(t) {
+  S.activeTmpl = t.id;
+  $('r-nama').value = t.nama || '';
+  S.rDrugs = JSON.parse(JSON.stringify(t.obat || []));
+  if (t.sediaan) {
+    $('sd-puyer').checked = t.sediaan.includes('puyer');
+    $('sd-kapsul').checked = t.sediaan.includes('kapsul');
+    $('sd-salep').checked  = t.sediaan.includes('salep');
+  }
+  renderTmplBar();
+  renderRDrugs();
+}
+
+function newTemplate() {
+  S.activeTmpl = null;
+  $('r-nama').value = '';
+  S.rDrugs = [{ nama:'', dosis:'', unit:'mg' }];
+  renderTmplBar();
+  renderRDrugs();
+}
+
+async function saveTemplate() {
+  const nama = $('r-nama').value.trim();
+  if (!nama) { toast('Isi nama racikan dulu'); return; }
+  const obat = S.rDrugs.filter(d => d.nama);
+  if (!obat.length) { toast('Tambah minimal 1 obat'); return; }
+  const sediaan = [];
+  if ($('sd-puyer').checked) sediaan.push('puyer');
+  if ($('sd-kapsul').checked) sediaan.push('kapsul');
+  if ($('sd-salep').checked) sediaan.push('salep');
+  const payload = {
+    doctor_id: S.user.data.id, nama, sediaan,
+    obat: obat.map(d => ({ nama:d.nama, dosis:parseFloat(d.dosis)||0, unit:d.unit||'mg' })),
+    updated_at: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  try {
+    if (S.activeTmpl) await db.collection('templates').doc(S.activeTmpl).update(payload);
+    else { const r = await db.collection('templates').add(payload); S.activeTmpl = r.id; }
+    toast('Template tersimpan ✓');
+    loadTemplates();
+  } catch(e) { toast('Gagal: ' + e.message); }
+}
+
+// ── Racikan Drugs ──
+function addRDrug() {
+  S.rDrugs.push({ nama:'', dosis:'', unit:'mg' });
+  renderRDrugs();
+}
+
+function renderRDrugs() {
+  const el = $('r-drugs');
+  el.innerHTML = '';
+  if (!S.rDrugs.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--gray);padding:8px 0">Belum ada obat. Klik "+ Tambah Obat"</div>';
+    return;
+  }
+  S.rDrugs.forEach((d, i) => {
+    const row = document.createElement('div');
+    row.className = 'drug-row row-racikan';
+    row.innerHTML = `
+      <input value="${d.nama}" placeholder="Nama obat" style="font-size:13px"
+        oninput="S.rDrugs[${i}].nama=this.value">
+      <input type="number" value="${d.dosis}" placeholder="0" step="0.1" min="0" style="font-size:13px"
+        oninput="S.rDrugs[${i}].dosis=this.value">
+      <select style="font-size:12px" onchange="S.rDrugs[${i}].unit=this.value">
+        ${['mg','mcg','g','IU'].map(u=>`<option value="${u}"${d.unit===u?' selected':''}>${u}</option>`).join('')}
+      </select>
+      <button onclick="S.rDrugs.splice(${i},1);renderRDrugs()" style="padding:4px 6px;font-size:12px">🗑</button>`;
+    el.appendChild(row);
+  });
+}
+
+// ── Tunggal Drugs ──
+function addTDrug() {
+  S.tDrugs.push({ nama:'', dosis:'', frekuensi:'', instruksi:'' });
+  renderTDrugs();
+}
+
+function renderTDrugs() {
+  const el = $('t-drugs');
+  el.innerHTML = '';
+  if (!S.tDrugs.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--gray);padding:8px 0">Belum ada obat. Klik "+ Tambah Obat"</div>';
+    return;
+  }
+  S.tDrugs.forEach((d, i) => {
+    const row = document.createElement('div');
+    row.className = 'drug-row row-tunggal';
+    row.innerHTML = `
+      <input value="${d.nama}" placeholder="Nama obat" style="font-size:13px"
+        oninput="S.tDrugs[${i}].nama=this.value">
+      <input value="${d.dosis}" placeholder="500mg" style="font-size:13px"
+        oninput="S.tDrugs[${i}].dosis=this.value">
+      <input value="${d.frekuensi}" placeholder="3x1" style="font-size:13px"
+        oninput="S.tDrugs[${i}].frekuensi=this.value">
+      <input value="${d.instruksi}" placeholder="Sesudah makan" style="font-size:13px"
+        oninput="S.tDrugs[${i}].instruksi=this.value">
+      <button onclick="S.tDrugs.splice(${i},1);renderTDrugs()" style="padding:4px 6px;font-size:12px">🗑</button>`;
+    el.appendChild(row);
+  });
+}
+
+// ── Submit ──
+async function submitResep() {
+  const nama = $('p-nama').value.trim();
+  const usia = $('p-usia').value.trim();
+  if (!nama || !usia) { toast('Nama dan usia pasien wajib diisi'); return; }
+
+  let items;
+  if (S.rxType === 'racikan') {
+    const rNama = $('r-nama').value.trim();
+    if (!rNama) { toast('Nama racikan wajib diisi'); return; }
+    const obat = S.rDrugs.filter(d => d.nama && d.dosis);
+    if (!obat.length) { toast('Tambah minimal 1 obat dalam racikan'); return; }
+    const sediaan = [];
+    if ($('sd-puyer').checked) sediaan.push('puyer');
+    if ($('sd-kapsul').checked) sediaan.push('kapsul');
+    if ($('sd-salep').checked) sediaan.push('salep');
+    items = {
+      nama_racikan: rNama,
+      jumlah_bungkus: parseInt($('r-bungkus').value)||10,
+      frekuensi: parseInt($('r-freq').value)||3,
+      dosis_per_kali: parseInt($('r-dose').value)||1,
+      sediaan, obat
+    };
+  } else {
+    const obat = S.tDrugs.filter(d => d.nama);
+    if (!obat.length) { toast('Tambah minimal 1 obat'); return; }
+    items = { obat };
+  }
+
+  const resep = {
+    nomor_resep: nomorResep(),
+    doctor_id: S.user.data.id,
+    doctor_nama: S.user.data.nama,
+    doctor_sp: S.user.data.spesialisasi || '',
+    pasien: {
+      nama, usia,
+      bb:     $('p-bb').value || '',
+      jk:     $('p-jk').value || '',
+      alamat: $('p-alamat').value || '',
+      telp:   $('p-telp').value || ''
+    },
+    tipe: S.rxType, items,
+    catatan: $('r-note').value || '',
+    status: 'menunggu',
+    created_at: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  try {
+    await db.collection('prescriptions').add(resep);
+    toast(`✅ ${resep.nomor_resep} terkirim ke apotek!`, 3000);
+    resetForm();
+  } catch(e) { toast('Gagal kirim: ' + e.message); }
+}
+
+// ══════════════════════════════════════════
+// APOTEK
+// ══════════════════════════════════════════
+function enterApotek() {
+  showView('apotek');
+  startQueue();
+}
+
+function setFilter(f, el) {
+  S.qFilter = f;
+  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderQueue();
+}
+
+function startQueue() {
+  if (S.qUnsub) S.qUnsub();
+  S.qUnsub = db.collection('prescriptions')
+    .orderBy('created_at','desc').limit(60)
+    .onSnapshot(snap => {
+      S.prescriptions = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+      renderQueue();
+    }, e => console.error(e));
+}
+
+async function ensureMasterDrugs() {
+  if (S.masterDrugs.length) return;
+  try {
+    const snap = await db.collection('drug_master')
+      .where('is_racikan','==',true).orderBy('nama_bersih').get();
+    S.masterDrugs = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+  } catch(e) { console.error(e); }
+}
+
+function renderQueue() {
+  const list = $('queue');
+  let items = S.prescriptions;
+  if (S.qFilter !== 'semua') items = items.filter(r => r.status === S.qFilter);
+  const menunggu = S.prescriptions.filter(r => r.status === 'menunggu').length;
+  $('apo-count').textContent = menunggu ? `${menunggu} menunggu` : 'Semua tertangani ✓';
+
+  if (!items.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><p>Tidak ada resep</p></div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  items.forEach(rx => {
+    const card = document.createElement('div');
+    card.className = 'rx-card';
+    card.id = 'rxc-' + rx.id;
+
+    const BADGE = { menunggu:'badge-menunggu', diproses:'badge-diproses', selesai:'badge-selesai' };
+    const LABEL = { menunggu:'Menunggu', diproses:'Diproses', selesai:'Selesai' };
+
+    let bodyHtml = '';
+    if (rx.tipe === 'racikan') {
+      const it = rx.items;
+      const sediaanStr = (it.sediaan||[]).join(', ') || '-';
+      bodyHtml += `<div style="font-size:12px;color:var(--gray);margin-bottom:10px">
+        ${it.nama_racikan} · <b>${it.jumlah_bungkus} bungkus</b> · ${it.frekuensi}×${it.dosis_per_kali}/hari · ${sediaanStr}</div>`;
+
+      if (rx.status !== 'selesai') {
+        bodyHtml += `
+          <div class="apo-hdr"><span>Nama Obat</span><span>Dosis/bgk</span><span>Pilih Sediaan Tersedia</span><span>Jml Tablet</span><span>Stok</span></div>
+          <div id="ads-${rx.id}">${buildSelectors(rx)}</div>
+          <div class="warn-box" id="wb-${rx.id}"></div>`;
+      } else {
+        bodyHtml += `<div style="font-size:12px;color:var(--gray)">${(it.obat||[]).map(o=>`${o.nama} ${o.dosis}${o.unit}`).join(' · ')}</div>`;
+        if (rx.sediaan_dipilih?.length) {
+          bodyHtml += `<div style="font-size:11px;color:var(--teal-d);margin-top:4px">
+            ${rx.sediaan_dipilih.map(s=>`${s.nama}: ${s.label||'-'} (${s.jml_tablet||'-'} tab)`).join(' · ')}</div>`;
+        }
+      }
+    } else {
+      const obat = rx.items?.obat || [];
+      bodyHtml += `<div style="font-size:12px;color:var(--gray)">${obat.map(o=>`${o.nama} ${o.dosis} ${o.frekuensi}`).join(' · ')}</div>`;
+    }
+
+    if (rx.catatan) {
+      bodyHtml += `<div class="note-box">📌 ${rx.catatan}</div>`;
+    }
+
+    let actionHtml = '';
+    if (rx.status === 'menunggu') {
+      actionHtml = `<button class="btn-primary btn-sm" onclick="terimaResep('${rx.id}')">✅ Terima &amp; Proses</button>`;
+    } else if (rx.status === 'diproses') {
+      actionHtml = `<button class="btn-sm" style="background:var(--green-l);color:var(--green);border-color:var(--green)" onclick="selesaiResep('${rx.id}')">🏁 Tandai Selesai</button>`;
+    }
+
+    card.innerHTML = `
+      <div class="rx-hdr">
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:500">${rx.pasien?.nama||'-'}</div>
+          <div class="meta">${rx.pasien?.usia||''}${rx.pasien?.bb?' · '+rx.pasien.bb+' kg':''} · ${rx.doctor_nama||''} (${rx.doctor_sp||''})</div>
+        </div>
+        <div>
+          <span class="badge ${BADGE[rx.status]||''}">${LABEL[rx.status]||rx.status}</span>
+          <div class="rx-num">${rx.nomor_resep||''}<br>${fmtTs(rx.created_at)}</div>
+        </div>
+      </div>
+      <div class="rx-body">
+        ${bodyHtml}
+        ${actionHtml ? `<div style="margin-top:10px">${actionHtml}</div>` : ''}
+      </div>`;
+    list.appendChild(card);
+  });
+
+  // populate selectors after DOM ready
+  ensureMasterDrugs().then(() => {
+    S.prescriptions.filter(r => r.status !== 'selesai' && r.tipe === 'racikan').forEach(rx => {
+      (rx.items?.obat||[]).forEach((d, i) => {
+        const wrap = $(`sw-${rx.id}-${i}`);
+        if (wrap) populateSel(wrap.querySelector('select'), d.nama);
+      });
+    });
+  });
+}
+
+function buildSelectors(rx) {
+  return (rx.items?.obat||[]).map((d, i) => `
+    <div class="apo-row" id="ar-${rx.id}-${i}">
+      <span style="font-size:13px;font-weight:500">${d.nama}</span>
+      <span style="font-size:13px">${d.dosis} ${d.unit}</span>
+      <div id="sw-${rx.id}-${i}">
+        <select style="font-size:11px;width:100%"
+          onchange="onSelChange('${rx.id}',${i},${d.dosis},'${d.unit}',${rx.items.jumlah_bungkus})">
+          <option value="">Pilih sediaan...</option>
+        </select>
+      </div>
+      <span id="jt-${rx.id}-${i}" style="font-size:13px;font-weight:500;color:var(--gray)">-</span>
+      <span id="sk-${rx.id}-${i}" style="font-size:11px;color:var(--gray)">-</span>
+    </div>`).join('');
+}
+
+function populateSel(sel, namaObat) {
+  if (!sel) return;
+  const q = namaObat.toLowerCase().replace(/[^a-z0-9]/g,'');
+  const hits = S.masterDrugs.filter(m => {
+    const n = m.nama_bersih.toLowerCase().replace(/[^a-z0-9]/g,'');
+    const f = m.nama_farmacare.toLowerCase().replace(/[^a-z0-9]/g,'');
+    return n.includes(q) || q.includes(n) || f.includes(q);
+  });
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">Pilih sediaan...</option>';
+  hits.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = JSON.stringify({ k:m.kekuatan_mg, stok:m.stok, label:m.nama_farmacare, sat:m.satuan });
+    opt.textContent = `${m.nama_farmacare} (stok: ${m.stok})`;
+    if (!m.stok) opt.style.color = 'var(--gray)';
+    sel.appendChild(opt);
+  });
+  if (prev) sel.value = prev;
+}
+
+function onSelChange(rxId, idx, dosis, unit, bungkus) {
+  const sel = document.querySelector(`#sw-${rxId}-${idx} select`);
+  if (!sel?.value) return;
+  try {
+    const s = JSON.parse(sel.value);
+    const jml = parseFloat(((dosis * bungkus) / s.k).toFixed(2));
+    const kurang = jml > s.stok;
+    const jtEl = $(`jt-${rxId}-${idx}`);
+    const skEl = $(`sk-${rxId}-${idx}`);
+    if (jtEl) { jtEl.textContent = jml + ' ' + s.sat; jtEl.style.color = kurang ? 'var(--red)' : 'var(--green)'; }
+    if (skEl) { skEl.textContent = (kurang?'⚠️ ':'✓ ') + 'stok: ' + s.stok; skEl.style.color = kurang ? 'var(--red)' : 'var(--gray)'; }
+    checkWarnings(rxId, bungkus);
+  } catch(e) {}
+}
+
+function checkWarnings(rxId, bungkus) {
+  const rx = S.prescriptions.find(r => r.id === rxId);
+  if (!rx) return;
+  const warns = [];
+  (rx.items?.obat||[]).forEach((d, i) => {
+    const sel = document.querySelector(`#sw-${rxId}-${i} select`);
+    if (!sel?.value) return;
+    try {
+      const s = JSON.parse(sel.value);
+      const jml = (d.dosis * bungkus) / s.k;
+      if (jml > s.stok) warns.push(`${d.nama}: butuh ${parseFloat(jml.toFixed(2))}, stok ${s.stok}`);
+    } catch(e) {}
+  });
+  const wb = $('wb-' + rxId);
+  if (wb) { wb.textContent = warns.length ? '⚠️ ' + warns.join(' · ') : ''; wb.style.display = warns.length ? 'block' : 'none'; }
+}
+
+async function terimaResep(id) {
+  try {
+    await db.collection('prescriptions').doc(id).update({
+      status: 'diproses',
+      diproses_at: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    const rx = S.prescriptions.find(r => r.id === id);
+    if (rx) triggerResepTimer(rx);
+    toast('Resep diterima — sedang diproses');
+  } catch(e) { toast('Gagal: ' + e.message); }
+}
+
+async function selesaiResep(id) {
+  const rx = S.prescriptions.find(r => r.id === id);
+  let sediaanDipilih = [];
+  if (rx?.tipe === 'racikan') {
+    sediaanDipilih = (rx.items?.obat||[]).map((d, i) => {
+      const sel = document.querySelector(`#sw-${id}-${i} select`);
+      if (!sel?.value) return { nama:d.nama, label:'-' };
+      try {
+        const s = JSON.parse(sel.value);
+        const jml = parseFloat(((d.dosis * rx.items.jumlah_bungkus) / s.k).toFixed(2));
+        return { nama:d.nama, label:s.label, jml_tablet:jml, stok_saat_itu:s.stok };
+      } catch(e) { return { nama:d.nama, label:'-' }; }
+    });
+  }
+  try {
+    await db.collection('prescriptions').doc(id).update({
+      status: 'selesai',
+      selesai_at: firebase.firestore.FieldValue.serverTimestamp(),
+      sediaan_dipilih: sediaanDipilih
+    });
+    toast('✅ Resep selesai diproses');
+  } catch(e) { toast('Gagal: ' + e.message); }
+}
+
+function triggerResepTimer(rx) {
+  if (!rtdb) return;
+  const path = ($('rt-path')?.value || 'resep_antrian');
+  try {
+    rtdb.ref(path).push({
+      nomor_resep: rx.nomor_resep,
+      pasien: rx.pasien?.nama || '',
+      dokter: rx.doctor_nama || '',
+      spesialisasi: rx.doctor_sp || '',
+      tipe: rx.tipe,
+      is_racikan: rx.tipe === 'racikan',
+      jumlah_bungkus: rx.tipe === 'racikan' ? rx.items.jumlah_bungkus : null,
+      started_at: Date.now()
+    });
+  } catch(e) { console.log('ResepTimer skip:', e.message); }
+}
+
+// ══════════════════════════════════════════
+// ADMIN
+// ══════════════════════════════════════════
+async function enterAdmin() {
+  showView('admin');
+  loadAdminStats();
+  loadDocList();
+}
+
+async function loadAdminStats() {
+  try {
+    const [docs, drugs] = await Promise.all([
+      db.collection('doctors').get(),
+      db.collection('drug_master').get()
+    ]);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const rxs = await db.collection('prescriptions')
+      .where('created_at','>=',firebase.firestore.Timestamp.fromDate(today)).get();
+    $('st-d').textContent = docs.size;
+    $('st-o').textContent = drugs.size;
+    $('st-r').textContent = rxs.size;
+  } catch(e) {}
+}
+
+async function loadDocList() {
+  const el = $('doc-list');
+  try {
+    const snap = await db.collection('doctors').orderBy('nama').get();
+    if (snap.empty) { el.innerHTML = '<div style="font-size:12px;color:var(--gray)">Belum ada dokter</div>'; return; }
+    el.innerHTML = '';
+    snap.forEach(doc => {
+      const d = doc.data();
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--bd)';
+      row.innerHTML = `
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--teal-l);color:var(--teal-d);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;flex-shrink:0">${d.inisial||'?'}</div>
+        <div style="flex:1"><div style="font-size:13px;font-weight:500">${d.nama}</div><div style="font-size:11px;color:var(--gray)">${d.spesialisasi||'Umum'}</div></div>
+        <button class="btn-sm" onclick='editDoc("${doc.id}",${JSON.stringify(d)})'>Edit</button>`;
+      el.appendChild(row);
+    });
+  } catch(e) { el.innerHTML = '<div style="font-size:12px;color:var(--red)">Gagal memuat</div>'; }
+}
+
+function showDocForm() {
+  $('df-id').value = '';
+  ['df-nama','df-sp','df-init','df-pin'].forEach(id => $(id).value = '');
+  $('doc-form-title').textContent = 'Tambah Dokter';
+  $('doc-form').style.display = '';
+}
+
+function editDoc(id, d) {
+  $('df-id').value = id;
+  $('df-nama').value = d.nama || '';
+  $('df-sp').value = d.spesialisasi || '';
+  $('df-init').value = d.inisial || '';
+  $('df-pin').value = '';
+  $('doc-form-title').textContent = 'Edit Dokter';
+  $('doc-form').style.display = '';
+}
+
+function hideDocForm() { $('doc-form').style.display = 'none'; }
+
+async function saveDoc() {
+  const nama = $('df-nama').value.trim();
+  const sp   = $('df-sp').value.trim();
+  const init = $('df-init').value.trim().toUpperCase();
+  const pin  = $('df-pin').value.trim();
+  const id   = $('df-id').value;
+  if (!nama || !init) { toast('Nama dan inisial wajib diisi'); return; }
+  const data = { nama, spesialisasi:sp, inisial:init };
+  if (pin) data.pin = pin;
+  try {
+    if (id) await db.collection('doctors').doc(id).update(data);
+    else {
+      if (!pin) { toast('PIN wajib untuk dokter baru'); return; }
+      await db.collection('doctors').add(data);
+    }
+    toast('Dokter tersimpan ✓');
+    hideDocForm();
+    loadDocList();
+    loadAdminStats();
+    loadDoctors(); // refresh login grid
+  } catch(e) { toast('Gagal: ' + e.message); }
+}
+
+// ── CSV Import ──
+let _csvParsed = [];
+
+function handleCsv(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split('\n').filter(l => l.trim());
+    _csvParsed = [];
+    // Skip header (line 0)
+    lines.slice(1).forEach(line => {
+      const cols = line.split(';');
+      if (cols.length < 9) return;
+      // Farmacare CSV: col0=rowIdx, col1=ID, col2=KodeBarang, col3=Barang,
+      //  col4=Kategori, col5=Golongan, col6=Stok, col7=Satuan, col8=HargaPokok, col9=HargaJual
+      const namaFarmacare = (cols[3]||'').trim().replace(/^"|"$/g,'');
+      const stok    = parseInt(cols[6]) || 0;
+      const satuan  = (cols[7]||'').trim().toLowerCase().replace(/^"|"$/g,'');
+      const hargaJual = parseInt(cols[9]) || 0;
+      if (!namaFarmacare) return;
+      const { nama, kekuatan, kUnit } = parseDrugName(namaFarmacare);
+      _csvParsed.push({
+        kode_barang: (cols[2]||'').trim(),
+        nama_farmacase: namaFarmacare,  // typo intentional per field name consistency
+        nama_farmacare: namaFarmacare,
+        nama_bersih: nama,
+        kekuatan_mg: kekuatan,
+        kekuatan_unit: kUnit,
+        satuan, stok, harga_jual: hargaJual,
+        is_racikan: isSolid(satuan) && !!kekuatan
+      });
+    });
+    const total   = _csvParsed.length;
+    const racikan = _csvParsed.filter(d => d.is_racikan).length;
+    $('csv-total').textContent = total + ' obat';
+    $('csv-racikan-info').textContent = ` (${racikan} siap racik)`;
+    // Preview — show racikan obat only
+    const preview = _csvParsed.filter(d => d.is_racikan).slice(0, 60);
+    $('csv-tbody').innerHTML = preview.map(d => `
+      <tr style="border-bottom:0.5px solid var(--bd)">
+        <td style="padding:5px 8px">${d.nama_bersih}</td>
+        <td style="padding:5px 8px">${d.kekuatan_mg||'-'} ${d.kekuatan_unit}</td>
+        <td style="padding:5px 8px">${d.satuan}</td>
+        <td style="padding:5px 8px;text-align:right">${d.stok}</td>
+      </tr>`).join('');
+    $('csv-prev').style.display = '';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+async function importDrugs() {
+  if (!_csvParsed.length) { toast('Tidak ada data'); return; }
+  toast('Mengimport data...', 60000);
+  try {
+    // Delete existing
+    const existing = await db.collection('drug_master').get();
+    const CHUNK = 400;
+    for (let i = 0; i < existing.docs.length; i += CHUNK) {
+      const b = db.batch();
+      existing.docs.slice(i, i + CHUNK).forEach(d => b.delete(d.ref));
+      await b.commit();
+    }
+    // Write new
+    for (let i = 0; i < _csvParsed.length; i += CHUNK) {
+      const b = db.batch();
+      _csvParsed.slice(i, i + CHUNK).forEach(d => b.set(db.collection('drug_master').doc(), d));
+      await b.commit();
+    }
+    S.masterDrugs = []; // reset cache
+    toast(`✅ ${_csvParsed.length} obat berhasil diimport!`, 3500);
+    $('csv-prev').style.display = 'none';
+    $('csv-in').value = '';
+    loadAdminStats();
+  } catch(e) { toast('Gagal import: ' + e.message); }
+}
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+loadDoctors();
+</script>
+</body>
+</html>
