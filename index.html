@@ -998,7 +998,39 @@ async function deleteRxAll(){
     st.textContent=`✅ ${snap.docs.length} resep dihapus`;loadAdminStats();
   }catch(e){st.textContent='Gagal: '+e.message;}
 }
-async function loadAdminStats(){
+async function enterAdmin(){showView('admin');loadAdminStats();loadDocList();}
+
+async function deleteRxByDate(range){
+  if(!confirm('Yakin hapus resep '+range+'? Tidak bisa dibatalkan.'))return;
+  const st=$('del-status');if(st)st.textContent='Menghapus...';
+  try{
+    let snap;
+    if(range==='today'){
+      const today=new Date();today.setHours(0,0,0,0);
+      snap=await db.collection('prescriptions').where('created_at','>=',firebase.firestore.Timestamp.fromDate(today)).get();
+    }
+    if(!snap){if(st)st.textContent='Range tidak dikenali';return;}
+    const CHUNK=400,docs=snap.docs;
+    for(let i=0;i<docs.length;i+=CHUNK){const b=db.batch();docs.slice(i,i+CHUNK).forEach(d=>b.delete(d.ref));await b.commit();}
+    if(st)st.textContent=`✅ ${docs.length} resep dihapus`;
+    loadAdminStats();
+  }catch(e){if(st)st.textContent='Gagal: '+e.message;}
+}
+
+async function deleteRxAll(){
+  if(!confirm('HAPUS SEMUA RESEP?\nIni akan menghapus seluruh data resep. Benar-benar yakin?'))return;
+  if(!confirm('Konfirmasi sekali lagi — ini TIDAK BISA DIBATALKAN.'))return;
+  const st=$('del-status');if(st)st.textContent='Menghapus semua...';
+  try{
+    const snap=await db.collection('prescriptions').get();
+    const CHUNK=400;
+    for(let i=0;i<snap.docs.length;i+=CHUNK){const b=db.batch();snap.docs.slice(i,i+CHUNK).forEach(d=>b.delete(d.ref));await b.commit();}
+    if(st)st.textContent=`✅ ${snap.docs.length} resep dihapus`;
+    loadAdminStats();
+  }catch(e){if(st)st.textContent='Gagal: '+e.message;}
+}
+
+
   try{
     const[docs,drugs]=await Promise.all([db.collection('doctors').get(),db.collection('drug_master').get()]);
     const today=new Date();today.setHours(0,0,0,0);
