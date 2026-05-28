@@ -234,7 +234,8 @@ button:disabled{opacity:0.4;cursor:not-allowed}
       <div style="font-size:14px;font-weight:500">💊 Apotek Mama</div>
       <div style="font-size:11px;color:var(--gray)" id="apo-count">Antrian</div>
     </div>
-    <button class="btn-sm no-print" onclick="goHistory('apotek')">📋 Riwayat</button>
+    <button class="btn-sm no-print" id="snd-btn" onclick="toggleSound()" title="Toggle bunyi notif">🔔</button>
+    <button class="btn-sm no-print" onclick="goHistory('apotek')" style="margin-left:4px">📋 Riwayat</button>
     <button class="btn-sm no-print" onclick="logout()" style="margin-left:4px">Keluar</button>
   </header>
   <main>
@@ -390,7 +391,8 @@ const S = {
   drugs: [],          // master obat racikan
   drugsLoaded: false,
   drugsLoading: false,
-  histFrom: 'apotek', histAll: []
+  histFrom: 'apotek', histAll: [],
+  soundOn: true       // bunyi notif resep masuk
 };
 let _idc = 0;
 const uid = () => 'i' + (++_idc);
@@ -449,6 +451,51 @@ function parseDrug(raw) {
 
 const SOLID = ['tablet', 'tab', 'kapsul', 'capsul', 'caps', 'kaplet', 'butir', 'chewtab', 'fct'];
 function isSolid(s) { return SOLID.indexOf((s || '').toLowerCase().trim()) >= 0; }
+
+// ── DOCTOR COLOR BADGE ────────────────────
+function docColor(sp) {
+  const s = (sp || '').toLowerCase();
+  if (s.indexOf('anak') >= 0 || s.indexOf('pediatri') >= 0)
+    return { bg: '#E1F5EE', c: '#085041' };                  // hijau — Anak
+  if (s.indexOf('interna') >= 0 || s.indexOf('penyakit dalam') >= 0)
+    return { bg: '#FAEEDA', c: '#BA7517' };                  // oranye — Interna
+  if (s.indexOf('kandungan') >= 0 || s.indexOf('obgyn') >= 0 || s.indexOf('obstetri') >= 0)
+    return { bg: '#F3E8FB', c: '#6B2FA0' };                  // ungu — Kandungan
+  return { bg: '#E6F1FB', c: '#185FA5' };                    // biru — Umum / default
+}
+
+// ── AUDIO NOTIF ───────────────────────────
+let _audioCtx = null;
+function getAudioCtx() {
+  if (!_audioCtx) {
+    try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  }
+  return _audioCtx;
+}
+// Init AudioContext on first user interaction (browser autoplay policy)
+document.addEventListener('click', function() { getAudioCtx(); }, { once: true });
+
+function playBeep() {
+  if (!S.soundOn) return;
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume();
+  function tone(freq, startSec, durSec) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0, ctx.currentTime + startSec);
+    gain.gain.linearRampToValueAtTime(0.28, ctx.currentTime + startSec + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startSec + durSec);
+    osc.start(ctx.currentTime + startSec);
+    osc.stop(ctx.currentTime + startSec + durSec + 0.05);
+  }
+  tone(880,  0,    0.20);   // nada 1 — La tinggi
+  tone(1100, 0.24, 0.25);   // nada 2 — Do tinggi
+}
 
 function normItems(rx) {
   if (Array.isArray(rx.items)) return rx.items;
@@ -842,6 +889,18 @@ function enterApotek() {
   showView('apotek');
   loadMasterDrugs();  // muat obat segera saat masuk
   startQueue();
+  updateSoundBtn();
+}
+
+function toggleSound() {
+  S.soundOn = !S.soundOn;
+  updateSoundBtn();
+  toast(S.soundOn ? '🔔 Bunyi notif aktif' : '🔕 Bunyi notif dimatikan');
+}
+
+function updateSoundBtn() {
+  const btn = $('snd-btn');
+  if (btn) btn.textContent = S.soundOn ? '🔔' : '🔕';
 }
 
 function setFilter(f, el) {
@@ -853,12 +912,22 @@ function setFilter(f, el) {
 
 function startQueue() {
   if (S.qUnsub) S.qUnsub();
+  let initialized = false;
   S.qUnsub = db.collection('prescriptions')
     .orderBy('created_at', 'desc')
     .limit(60)
     .onSnapshot(function(snap) {
       S.prescriptions = [];
       snap.forEach(function(d) { S.prescriptions.push(Object.assign({ id: d.id }, d.data())); });
+      // Deteksi resep baru setelah initial load selesai
+      if (initialized) {
+        snap.docChanges().forEach(function(change) {
+          if (change.type === 'added' && change.doc.data().status === 'menunggu') {
+            playBeep();
+          }
+        });
+      }
+      initialized = true;
       renderQueue();
     }, function(e) { console.error('queue:', e); });
 }
@@ -924,7 +993,7 @@ function renderQueue() {
               '<div class="sdrop-list" id="sl-' + rx.id + '-' + ii + '-' + di + '"></div>' +
               '<input type="hidden" id="sv-' + rx.id + '-' + ii + '-' + di + '">' +
               '</div>' +
-              '<span id="jt-' + rx.id + '-' + ii + '-' + di + '" style="font-size:13px;font-weight:500;color:var(--gray)">-</span>' +
+              '<span id="jt-' + rx.id + '-' + ii + '-' + di + '" style="font-size:16px;font-weight:700;color:var(--gray)">-</span>' +
               '<span id="sk-' + rx.id + '-' + ii + '-' + di + '" style="font-size:11px;color:var(--gray)">-</span>' +
               '</div>';
           });
@@ -942,10 +1011,15 @@ function renderQueue() {
     if (rx.status === 'menunggu') btnHtml = '<button class="btn-primary btn-sm" style="margin-top:10px" onclick="terimaRx(\'' + rx.id + '\')">Terima & Proses</button>';
     else if (rx.status === 'diproses') btnHtml = '<button class="btn-sm" style="margin-top:10px;background:var(--green-l);color:var(--green);border-color:var(--green)" onclick="selesaiRx(\'' + rx.id + '\')">Tandai Selesai</button>';
     else btnHtml = '<button class="btn-sm" style="margin-top:10px" onclick="printRx(\'' + rx.id + '\')">Print Resep</button>';
+    const dNama = (rx.doctor && rx.doctor.nama) || rx.doctor_nama || '';
+    const dSp   = (rx.doctor && rx.doctor.spesialisasi) || '';
+    const dcol  = docColor(dSp);
     card.innerHTML =
       '<div class="rx-hdr">' +
       '<div style="flex:1"><div style="font-size:14px;font-weight:500">' + ((rx.pasien && rx.pasien.nama) || '-') + '</div>' +
-      '<div style="font-size:11px;color:var(--gray)">' + ((rx.pasien && rx.pasien.usia) || '') + ((rx.pasien && rx.pasien.bb) ? ' · ' + rx.pasien.bb + ' kg' : '') + ' · ' + ((rx.doctor && rx.doctor.nama) || rx.doctor_nama || '') + '</div></div>' +
+      '<div style="font-size:11px;color:var(--gray);margin-top:2px">' + ((rx.pasien && rx.pasien.usia) || '') + ((rx.pasien && rx.pasien.bb) ? ' · ' + rx.pasien.bb + ' kg' : '') + '</div>' +
+      '<div style="margin-top:5px"><span style="display:inline-block;background:' + dcol.bg + ';color:' + dcol.c + ';border-radius:20px;padding:2px 9px;font-size:11px;font-weight:600">' + dNama + (dSp ? ' · ' + dSp : '') + '</span></div>' +
+      '</div>' +
       '<div style="text-align:right"><span class="badge ' + (BADGE[rx.status] || '') + '">' + (LABEL[rx.status] || rx.status) + '</span>' +
       '<div style="font-size:11px;font-weight:500;color:var(--teal-d);margin-top:3px">' + (rx.nomor_resep || '') + '</div>' +
       '<div style="font-size:11px;color:var(--gray)">' + fmtTs(rx.created_at) + '</div></div>' +
@@ -1360,29 +1434,95 @@ function deleteRxAll() {
 // ── CSV IMPORT ────────────────────────────
 var _csv = [];
 
+// Parse satu baris CSV dengan quote-awareness
+function parseCSVRow(line, dlm) {
+  const result = [];
+  let inQ = false, cur = '';
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === dlm && !inQ) { result.push(cur.trim()); cur = ''; }
+    else { cur += c; }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
 function handleCsv(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = function(e) {
     const lines = e.target.result.split('\n').filter(function(l) { return l.trim(); });
+    if (!lines.length) { toast('File kosong'); return; }
+
+    // 1. Auto-detect delimiter: hitung ';' vs ',' di baris header
+    const hdrLine = lines[0];
+    const cntSemi  = (hdrLine.match(/;/g)  || []).length;
+    const cntComma = (hdrLine.match(/,/g) || []).length;
+    const dlm = cntSemi >= cntComma ? ';' : ',';
+
+    // 2. Parse header → mapping kolom by keyword
+    const hdrs = parseCSVRow(hdrLine, dlm).map(function(h) {
+      return h.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+    });
+
+    function findCol(keywords) {
+      for (let ki = 0; ki < keywords.length; ki++) {
+        const kw = keywords[ki].toLowerCase().replace(/[^a-z0-9]/g, '');
+        for (let hi = 0; hi < hdrs.length; hi++) {
+          if (hdrs[hi].indexOf(kw) >= 0) return hi;
+        }
+      }
+      return -1;
+    }
+
+    const iNama = findCol(['namabarang', 'namaobat', 'nama']);
+    const iStok = findCol(['jumlahstok', 'stok', 'saldo', 'qty', 'quantity']);
+    const iSat  = findCol(['satuan', 'unit']);
+    const iHj   = findCol(['hargajual', 'hjual', 'harga', 'price']);
+    const iKode = findCol(['kodebarang', 'kode', 'sku']);
+
+    if (iNama < 0) {
+      toast('❌ Kolom nama obat tidak ditemukan. Format CSV tidak dikenali.');
+      console.warn('Headers terdeteksi:', hdrs);
+      return;
+    }
+
+    // 3. Parse data rows
     _csv = [];
     lines.slice(1).forEach(function(line) {
-      const cols = line.split(';');
-      if (cols.length < 9) return;
-      const nf = (cols[3] || '').trim().replace(/^"|"$/g, '');
-      const stok = parseInt(cols[6]) || 0;
-      const sat = (cols[7] || '').trim().toLowerCase().replace(/^"|"$/g, '');
-      const hj = parseInt(cols[9]) || 0;
+      if (!line.trim()) return;
+      const cols = parseCSVRow(line, dlm);
+      const nf = iNama >= 0 ? (cols[iNama] || '').trim() : '';
       if (!nf) return;
+      const stok = iStok >= 0 ? (parseInt((cols[iStok] || '').replace(/[^0-9]/g, '')) || 0) : 0;
+      const sat  = iSat  >= 0 ? (cols[iSat]  || '').trim().toLowerCase() : '';
+      const hj   = iHj   >= 0 ? (parseInt((cols[iHj]  || '').replace(/[^0-9]/g, '')) || 0) : 0;
+      const kode = iKode >= 0 ? (cols[iKode] || '').trim() : '';
       const p = parseDrug(nf);
-      _csv.push({ kode_barang: (cols[2] || '').trim(), nama_farmacare: nf, nama_bersih: p.n, kekuatan_mg: p.k, kekuatan_unit: p.u, satuan: sat, stok: stok, harga_jual: hj, is_racikan: isSolid(sat) && !!p.k });
+      _csv.push({
+        kode_barang:   kode,
+        nama_farmacare: nf,
+        nama_bersih:   p.n,
+        kekuatan_mg:   p.k,
+        kekuatan_unit: p.u,
+        satuan:        sat,
+        stok:          stok,
+        harga_jual:    hj,
+        is_racikan:    isSolid(sat) && !!p.k
+      });
     });
+
     const rac = _csv.filter(function(d) { return d.is_racikan; }).length;
     $('csv-total').textContent = _csv.length + ' obat';
-    $('csv-info').textContent = ' (' + rac + ' siap racik)';
+    $('csv-info').textContent  = ' (' + rac + ' siap racik · ' + (dlm === ';' ? 'format semicolon' : 'format comma') + ')';
     $('csv-tbody').innerHTML = _csv.filter(function(d) { return d.is_racikan; }).slice(0, 60).map(function(d) {
-      return '<tr style="border-bottom:0.5px solid var(--bd)"><td style="padding:5px 8px">' + d.nama_bersih + '</td><td style="padding:5px 8px">' + (d.kekuatan_mg || '-') + ' ' + d.kekuatan_unit + '</td><td style="padding:5px 8px">' + d.satuan + '</td><td style="padding:5px 8px;text-align:right">' + d.stok + '</td></tr>';
+      return '<tr style="border-bottom:0.5px solid var(--bd)">' +
+        '<td style="padding:5px 8px">' + d.nama_bersih + '</td>' +
+        '<td style="padding:5px 8px">' + (d.kekuatan_mg || '-') + ' ' + d.kekuatan_unit + '</td>' +
+        '<td style="padding:5px 8px">' + d.satuan + '</td>' +
+        '<td style="padding:5px 8px;text-align:right">' + d.stok + '</td></tr>';
     }).join('');
     $('csv-prev').style.display = '';
   };
