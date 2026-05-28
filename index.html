@@ -234,8 +234,7 @@ button:disabled{opacity:0.4;cursor:not-allowed}
       <div style="font-size:14px;font-weight:500">💊 Apotek Mama</div>
       <div style="font-size:11px;color:var(--gray)" id="apo-count">Antrian</div>
     </div>
-    <button class="btn-sm no-print" id="snd-btn" onclick="toggleSound()" title="Toggle bunyi notif">🔔</button>
-    <button class="btn-sm no-print" onclick="goHistory('apotek')" style="margin-left:4px">📋 Riwayat</button>
+    <button class="btn-sm no-print" onclick="goHistory('apotek')">📋 Riwayat</button>
     <button class="btn-sm no-print" onclick="logout()" style="margin-left:4px">Keluar</button>
   </header>
   <main>
@@ -392,7 +391,7 @@ const S = {
   drugsLoaded: false,
   drugsLoading: false,
   histFrom: 'apotek', histAll: [],
-  soundOn: true       // bunyi notif resep masuk
+  tambahan: {}, qFirstLoad: true, notifiedIds: null
 };
 let _idc = 0;
 const uid = () => 'i' + (++_idc);
@@ -452,49 +451,45 @@ function parseDrug(raw) {
 const SOLID = ['tablet', 'tab', 'kapsul', 'capsul', 'caps', 'kaplet', 'butir', 'chewtab', 'fct'];
 function isSolid(s) { return SOLID.indexOf((s || '').toLowerCase().trim()) >= 0; }
 
-// ── DOCTOR COLOR BADGE ────────────────────
-function docColor(sp) {
-  const s = (sp || '').toLowerCase();
-  if (s.indexOf('anak') >= 0 || s.indexOf('pediatri') >= 0)
-    return { bg: '#E1F5EE', c: '#085041' };                  // hijau — Anak
-  if (s.indexOf('interna') >= 0 || s.indexOf('penyakit dalam') >= 0)
-    return { bg: '#FAEEDA', c: '#BA7517' };                  // oranye — Interna
-  if (s.indexOf('kandungan') >= 0 || s.indexOf('obgyn') >= 0 || s.indexOf('obstetri') >= 0)
-    return { bg: '#F3E8FB', c: '#6B2FA0' };                  // ungu — Kandungan
-  return { bg: '#E6F1FB', c: '#185FA5' };                    // biru — Umum / default
+// ── DOC COLORS ────────────────────────────
+const DOC_COLORS = [
+  { bg:'#E3F2FD', color:'#1565C0' },
+  { bg:'#F3E5F5', color:'#6A1B9A' },
+  { bg:'#E8F5E9', color:'#2E7D32' },
+  { bg:'#FFF3E0', color:'#E65100' },
+  { bg:'#FCE4EC', color:'#AD1457' },
+  { bg:'#E0F7FA', color:'#00695C' },
+  { bg:'#FFF8E1', color:'#F57F17' },
+  { bg:'#EDE7F6', color:'#4527A0' }
+];
+function docColorOf(nama) {
+  var s = 0;
+  for (var i = 0; i < (nama||'').length; i++) s += (nama||'').charCodeAt(i);
+  return DOC_COLORS[s % DOC_COLORS.length];
 }
-
-// ── AUDIO NOTIF ───────────────────────────
-let _audioCtx = null;
-function getAudioCtx() {
-  if (!_audioCtx) {
-    try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
-  }
-  return _audioCtx;
+function docInisialFrom(nama) {
+  if (!nama) return '?';
+  var parts = (nama||'').split(/[\s,]+/).filter(function(p) {
+    return p && !/^(dr|drs|drg|sp|m\.|med|klin|ked)\.?$/i.test(p);
+  });
+  return parts.slice(0,2).map(function(p){ return p.charAt(0).toUpperCase(); }).join('') || nama.charAt(0).toUpperCase();
 }
-// Init AudioContext on first user interaction (browser autoplay policy)
-document.addEventListener('click', function() { getAudioCtx(); }, { once: true });
-
 function playBeep() {
-  if (!S.soundOn) return;
-  const ctx = getAudioCtx();
-  if (!ctx) return;
-  if (ctx.state === 'suspended') ctx.resume();
-  function tone(freq, startSec, durSec) {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0, ctx.currentTime + startSec);
-    gain.gain.linearRampToValueAtTime(0.28, ctx.currentTime + startSec + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startSec + durSec);
-    osc.start(ctx.currentTime + startSec);
-    osc.stop(ctx.currentTime + startSec + durSec + 0.05);
-  }
-  tone(880,  0,    0.20);   // nada 1 — La tinggi
-  tone(1100, 0.24, 0.25);   // nada 2 — Do tinggi
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [880, 1100].forEach(function(freq, ti) {
+      setTimeout(function() {
+        try {
+          var o = ctx.createOscillator(), g = ctx.createGain();
+          o.connect(g); g.connect(ctx.destination);
+          o.frequency.value = freq;
+          g.gain.setValueAtTime(0.3, ctx.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+          o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.35);
+        } catch(e2) {}
+      }, ti * 280);
+    });
+  } catch(e) { console.log('beep skip'); }
 }
 
 function normItems(rx) {
@@ -867,7 +862,7 @@ function submitResep() {
   const doc = S.user.data;
   const resep = {
     nomor_resep: nomorResep(),
-    doctor: { id: doc.id, nama: doc.nama, spesialisasi: doc.spesialisasi || '', sip: doc.sip || '', alamat_praktik: doc.alamat_praktik || '', hari_praktik: doc.hari_praktik || '' },
+    doctor: { id: doc.id, nama: doc.nama, spesialisasi: doc.spesialisasi || '', sip: doc.sip || '', alamat_praktik: doc.alamat_praktik || '', hari_praktik: doc.hari_praktik || '', inisial: doc.inisial || '' },
     pasien: { nama: nama, usia: usia, bb: $('p-bb').value || '', jk: $('p-jk').value || '', alamat: $('p-alamat').value || '', telp: $('p-telp').value || '' },
     items: S.rxItems.map(function(it) {
       if (it.tipe === 'racikan') {
@@ -889,18 +884,6 @@ function enterApotek() {
   showView('apotek');
   loadMasterDrugs();  // muat obat segera saat masuk
   startQueue();
-  updateSoundBtn();
-}
-
-function toggleSound() {
-  S.soundOn = !S.soundOn;
-  updateSoundBtn();
-  toast(S.soundOn ? '🔔 Bunyi notif aktif' : '🔕 Bunyi notif dimatikan');
-}
-
-function updateSoundBtn() {
-  const btn = $('snd-btn');
-  if (btn) btn.textContent = S.soundOn ? '🔔' : '🔕';
 }
 
 function setFilter(f, el) {
@@ -912,22 +895,24 @@ function setFilter(f, el) {
 
 function startQueue() {
   if (S.qUnsub) S.qUnsub();
-  let initialized = false;
+  S.qFirstLoad = true;
+  S.notifiedIds = new Set();
   S.qUnsub = db.collection('prescriptions')
     .orderBy('created_at', 'desc')
     .limit(60)
     .onSnapshot(function(snap) {
+      const newIds = [];
       S.prescriptions = [];
-      snap.forEach(function(d) { S.prescriptions.push(Object.assign({ id: d.id }, d.data())); });
-      // Deteksi resep baru setelah initial load selesai
-      if (initialized) {
-        snap.docChanges().forEach(function(change) {
-          if (change.type === 'added' && change.doc.data().status === 'menunggu') {
-            playBeep();
-          }
-        });
-      }
-      initialized = true;
+      snap.forEach(function(d) {
+        const rx = Object.assign({ id: d.id }, d.data());
+        S.prescriptions.push(rx);
+        if (rx.status === 'menunggu' && !S.notifiedIds.has(d.id)) {
+          newIds.push(d.id);
+          S.notifiedIds.add(d.id);
+        }
+      });
+      if (!S.qFirstLoad && newIds.length) playBeep();
+      S.qFirstLoad = false;
       renderQueue();
     }, function(e) { console.error('queue:', e); });
 }
@@ -993,7 +978,7 @@ function renderQueue() {
               '<div class="sdrop-list" id="sl-' + rx.id + '-' + ii + '-' + di + '"></div>' +
               '<input type="hidden" id="sv-' + rx.id + '-' + ii + '-' + di + '">' +
               '</div>' +
-              '<span id="jt-' + rx.id + '-' + ii + '-' + di + '" style="font-size:16px;font-weight:700;color:var(--gray)">-</span>' +
+              '<span id="jt-' + rx.id + '-' + ii + '-' + di + '" style="font-size:15px;font-weight:700;color:var(--gray)">-</span>' +
               '<span id="sk-' + rx.id + '-' + ii + '-' + di + '" style="font-size:11px;color:var(--gray)">-</span>' +
               '</div>';
           });
@@ -1011,21 +996,33 @@ function renderQueue() {
     if (rx.status === 'menunggu') btnHtml = '<button class="btn-primary btn-sm" style="margin-top:10px" onclick="terimaRx(\'' + rx.id + '\')">Terima & Proses</button>';
     else if (rx.status === 'diproses') btnHtml = '<button class="btn-sm" style="margin-top:10px;background:var(--green-l);color:var(--green);border-color:var(--green)" onclick="selesaiRx(\'' + rx.id + '\')">Tandai Selesai</button>';
     else btnHtml = '<button class="btn-sm" style="margin-top:10px" onclick="printRx(\'' + rx.id + '\')">Print Resep</button>';
-    const dNama = (rx.doctor && rx.doctor.nama) || rx.doctor_nama || '';
-    const dSp   = (rx.doctor && rx.doctor.spesialisasi) || '';
-    const dcol  = docColor(dSp);
+    const docNama = (rx.doctor && rx.doctor.nama) || rx.doctor_nama || '';
+    const docInit = (rx.doctor && rx.doctor.inisial) || docInisialFrom(docNama);
+    const dc = docColorOf(docNama);
+    const docBadge = docNama
+      ? '<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px 2px 4px;border-radius:12px;font-size:11px;font-weight:500;background:' + dc.bg + ';color:' + dc.color + '">' +
+        '<span style="width:16px;height:16px;border-radius:50%;background:' + dc.color + ';color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0">' + docInit + '</span>' +
+        docNama + '</span>'
+      : '';
+    const usiaStr = ((rx.pasien && rx.pasien.usia) || '') + ((rx.pasien && rx.pasien.bb) ? ' · ' + rx.pasien.bb + ' kg' : '');
     card.innerHTML =
       '<div class="rx-hdr">' +
-      '<div style="flex:1"><div style="font-size:14px;font-weight:500">' + ((rx.pasien && rx.pasien.nama) || '-') + '</div>' +
-      '<div style="font-size:11px;color:var(--gray);margin-top:2px">' + ((rx.pasien && rx.pasien.usia) || '') + ((rx.pasien && rx.pasien.bb) ? ' · ' + rx.pasien.bb + ' kg' : '') + '</div>' +
-      '<div style="margin-top:5px"><span style="display:inline-block;background:' + dcol.bg + ';color:' + dcol.c + ';border-radius:20px;padding:2px 9px;font-size:11px;font-weight:600">' + dNama + (dSp ? ' · ' + dSp : '') + '</span></div>' +
+      '<div style="flex:1">' +
+      '<div style="font-size:14px;font-weight:500">' + ((rx.pasien && rx.pasien.nama) || '-') + '</div>' +
+      (usiaStr ? '<div style="font-size:11px;color:var(--gray);margin-top:1px">' + usiaStr + '</div>' : '') +
+      (docBadge ? '<div style="margin-top:5px">' + docBadge + '</div>' : '') +
       '</div>' +
       '<div style="text-align:right"><span class="badge ' + (BADGE[rx.status] || '') + '">' + (LABEL[rx.status] || rx.status) + '</span>' +
       '<div style="font-size:11px;font-weight:500;color:var(--teal-d);margin-top:3px">' + (rx.nomor_resep || '') + '</div>' +
       '<div style="font-size:11px;color:var(--gray)">' + fmtTs(rx.created_at) + '</div></div>' +
       '</div>' +
-      '<div class="rx-body">' + sectHtml + btnHtml + '</div>';
+      '<div class="rx-body">' + sectHtml +
+      (rx.status === 'diproses' ? '<div id="tmb-' + rx.id + '" class="rx-sec" style="padding-top:10px;margin-top:4px"></div>' : '') +
+      btnHtml + '</div>';
     list.appendChild(card);
+    if (rx.status === 'diproses') {
+      (function(rxid) { setTimeout(function() { renderTambahan(rxid); }, 0); })(rx.id);
+    }
   });
 }
 
@@ -1160,7 +1157,11 @@ function selesaiRx(id) {
       } catch(e) {}
     });
   });
-  db.collection('prescriptions').doc(id).update({ status: 'selesai', selesai_at: firebase.firestore.FieldValue.serverTimestamp(), sediaan_dipilih: sel })
+  const tambahan_kasir = (S.tambahan[id] || [])
+    .filter(function(t) { return (t.nama || '').trim(); })
+    .map(function(t) { return { nama: t.nama.trim(), jumlah: parseInt(t.jumlah) || 1 }; });
+  delete S.tambahan[id];
+  db.collection('prescriptions').doc(id).update({ status: 'selesai', selesai_at: firebase.firestore.FieldValue.serverTimestamp(), sediaan_dipilih: sel, tambahan_kasir: tambahan_kasir })
     .then(function() { toast('Resep selesai diproses'); })
     .catch(function(e) { toast('Gagal: ' + e.message); });
 }
@@ -1202,6 +1203,12 @@ function printRx(rxId) {
         '<div class="p-paraf">paraf dokter</div><div style="clear:both"></div></div>';
     }
   });
+  if (rx.tambahan_kasir && rx.tambahan_kasir.length) {
+    rHtml += '<div class="p-r">' +
+      '<div style="font-size:11pt;font-weight:bold;border-bottom:0.5px solid #ccc;padding-bottom:4pt;margin-bottom:6pt">Tambahan Kasir</div>' +
+      rx.tambahan_kasir.map(function(t) { return '<div class="p-r-line">' + t.nama + ' &times; ' + t.jumlah + '</div>'; }).join('') +
+      '</div>';
+  }
   $('print-area').innerHTML = '<div class="rx-print">' +
     '<div class="p-hdr">' +
     '<div class="p-doc-name">' + (doc.nama || '') + '</div>' +
@@ -1296,6 +1303,11 @@ function renderHistory() {
         }
       });
       if (rx.catatan) h += '<div style="color:var(--amber);margin-top:4px">📌 ' + rx.catatan + '</div>';
+      if (rx.tambahan_kasir && rx.tambahan_kasir.length) {
+        h += '<div style="margin-top:6px"><b>🛒 Tambahan Kasir:</b><br>' +
+          rx.tambahan_kasir.map(function(t) { return '&nbsp;&nbsp;· ' + t.nama + ' × ' + t.jumlah; }).join('<br>') +
+          '</div>';
+      }
       det.innerHTML = h + '<button class="btn-sm" style="margin-top:8px" onclick="event.stopPropagation();printRx(\'' + rx.id + '\')">Print Resep</button>';
       row.appendChild(det);
     };
@@ -1431,75 +1443,101 @@ function deleteRxAll() {
     .catch(function(e) { st.textContent = 'Gagal: ' + e.message; });
 }
 
+// ── TAMBAHAN KASIR ────────────────────────
+function addTambahan(rxId) {
+  if (!S.tambahan[rxId]) S.tambahan[rxId] = [];
+  S.tambahan[rxId].push({ nama: '', jumlah: 1 });
+  renderTambahan(rxId);
+}
+function removeTambahan(rxId, idx) {
+  if (!S.tambahan[rxId]) return;
+  S.tambahan[rxId].splice(idx, 1);
+  renderTambahan(rxId);
+}
+function upTambahan(rxId, idx, f, v) {
+  if (S.tambahan[rxId] && S.tambahan[rxId][idx] !== undefined) S.tambahan[rxId][idx][f] = v;
+}
+function renderTambahan(rxId) {
+  const el = $('tmb-' + rxId);
+  if (!el) return;
+  const items = S.tambahan[rxId] || [];
+  let h = '<div class="rx-sec-lbl"><span>🛒 Tambahan Kasir</span>' +
+    '<button class="btn-sm" style="margin-left:8px" onclick="addTambahan(\'' + rxId + '\')">+ Item</button></div>';
+  if (items.length) {
+    items.forEach(function(item, i) {
+      h += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">' +
+        '<input value="' + (item.nama || '').replace(/"/g, '&quot;') + '" placeholder="Nama item / obat bebas..." ' +
+        'style="flex:2;font-size:12px;padding:5px 8px;border:0.5px solid var(--bd2);border-radius:var(--r-sm)" ' +
+        'oninput="upTambahan(\'' + rxId + '\',' + i + ',\'nama\',this.value)">' +
+        '<input type="number" value="' + (item.jumlah || 1) + '" min="1" placeholder="Jml" ' +
+        'style="width:60px;font-size:12px;padding:5px 8px;border:0.5px solid var(--bd2);border-radius:var(--r-sm)" ' +
+        'oninput="upTambahan(\'' + rxId + '\',' + i + ',\'jumlah\',parseInt(this.value)||1)">' +
+        '<button class="btn-sm btn-danger" onclick="removeTambahan(\'' + rxId + '\',' + i + ')">×</button>' +
+        '</div>';
+    });
+  } else {
+    h += '<div style="font-size:12px;color:var(--gray);padding:2px 0">Belum ada item tambahan</div>';
+  }
+  el.innerHTML = h;
+}
+
 // ── CSV IMPORT ────────────────────────────
 var _csv = [];
-
-// Parse satu baris CSV dengan quote-awareness
-function parseCSVRow(line, dlm) {
-  const result = [];
-  let inQ = false, cur = '';
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') { inQ = !inQ; }
-    else if (c === dlm && !inQ) { result.push(cur.trim()); cur = ''; }
-    else { cur += c; }
-  }
-  result.push(cur.trim());
-  return result;
-}
 
 function handleCsv(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = function(e) {
-    const lines = e.target.result.split('\n').filter(function(l) { return l.trim(); });
-    if (!lines.length) { toast('File kosong'); return; }
+    const raw = e.target.result.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lines = raw.split('\n').filter(function(l) { return l.trim(); });
+    if (lines.length < 2) { toast('File kosong atau hanya header'); return; }
 
-    // 1. Auto-detect delimiter: hitung ';' vs ',' di baris header
-    const hdrLine = lines[0];
-    const cntSemi  = (hdrLine.match(/;/g)  || []).length;
-    const cntComma = (hdrLine.match(/,/g) || []).length;
-    const dlm = cntSemi >= cntComma ? ';' : ',';
+    // Auto-detect delimiter
+    const delim = lines[0].indexOf(';') >= 0 ? ';' : ',';
 
-    // 2. Parse header → mapping kolom by keyword
-    const hdrs = parseCSVRow(hdrLine, dlm).map(function(h) {
-      return h.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
-    });
-
-    function findCol(keywords) {
-      for (let ki = 0; ki < keywords.length; ki++) {
-        const kw = keywords[ki].toLowerCase().replace(/[^a-z0-9]/g, '');
-        for (let hi = 0; hi < hdrs.length; hi++) {
-          if (hdrs[hi].indexOf(kw) >= 0) return hi;
-        }
+    // Proper CSV line parser — handles quoted fields containing delimiter
+    function parseLine(line) {
+      var res = [], cur = '', inQ = false;
+      for (var i = 0; i < line.length; i++) {
+        var c = line[i];
+        if (c === '"') { inQ = !inQ; }
+        else if (c === delim && !inQ) { res.push(cur.trim()); cur = ''; }
+        else { cur += c; }
       }
-      return -1;
+      res.push(cur.trim());
+      return res;
     }
 
-    const iNama = findCol(['namabarang', 'namaobat', 'nama']);
-    const iStok = findCol(['jumlahstok', 'stok', 'saldo', 'qty', 'quantity']);
-    const iSat  = findCol(['satuan', 'unit']);
-    const iHj   = findCol(['hargajual', 'hjual', 'harga', 'price']);
-    const iKode = findCol(['kodebarang', 'kode', 'sku']);
+    // Map column indices from header (by name, not position)
+    const hdr = parseLine(lines[0]);
+    const idx = {};
+    hdr.forEach(function(h, i) { idx[h.replace(/\uFEFF/g,'').trim().toLowerCase()] = i; });
 
-    if (iNama < 0) {
-      toast('❌ Kolom nama obat tidak ditemukan. Format CSV tidak dikenali.');
-      console.warn('Headers terdeteksi:', hdrs);
-      return;
-    }
+    const iKode  = idx['kode barang']  !== undefined ? idx['kode barang']  : 2;
+    const iNama  = idx['barang']       !== undefined ? idx['barang']       : 3;
+    const iStok  = idx['stok']         !== undefined ? idx['stok']         : 4;
+    const iSat   = idx['satuan']       !== undefined ? idx['satuan']       : 5;
+    const iNilai = idx['nilai stok']   !== undefined ? idx['nilai stok']   : 6;
+    const iED    = idx['ed terdekat']  !== undefined ? idx['ed terdekat']  : 7;
+    const iPrio  = idx['prioritas']    !== undefined ? idx['prioritas']    : 8;
+    const iKomp  = idx['komposisi']    !== undefined ? idx['komposisi']    : 9;
 
-    // 3. Parse data rows
     _csv = [];
     lines.slice(1).forEach(function(line) {
       if (!line.trim()) return;
-      const cols = parseCSVRow(line, dlm);
-      const nf = iNama >= 0 ? (cols[iNama] || '').trim() : '';
+      const cols = parseLine(line);
+      const nf  = (cols[iNama]  || '').replace(/^"|"$/g,'').trim();
       if (!nf) return;
-      const stok = iStok >= 0 ? (parseInt((cols[iStok] || '').replace(/[^0-9]/g, '')) || 0) : 0;
-      const sat  = iSat  >= 0 ? (cols[iSat]  || '').trim().toLowerCase() : '';
-      const hj   = iHj   >= 0 ? (parseInt((cols[iHj]  || '').replace(/[^0-9]/g, '')) || 0) : 0;
-      const kode = iKode >= 0 ? (cols[iKode] || '').trim() : '';
+      const sat = (cols[iSat]   || '').replace(/^"|"$/g,'').trim();
+      if (sat.toLowerCase() === 'jasa') return;   // exclude service items
+      const stok  = parseInt(cols[iStok])  || 0;
+      const nilai = parseInt(cols[iNilai]) || 0;
+      const hpp_sat = (stok > 0 && nilai > 0) ? Math.round(nilai / stok) : 0;
+      const ed   = (cols[iED]   || '').replace(/^"|"$/g,'').trim();
+      const prio = (cols[iPrio] || '').replace(/^"|"$/g,'').trim();
+      const komp = (cols[iKomp] || '').replace(/^"|"$/g,'').trim();
+      const kode = (cols[iKode] || '').replace(/^"|"$/g,'').trim();
       const p = parseDrug(nf);
       _csv.push({
         kode_barang:   kode,
@@ -1507,17 +1545,21 @@ function handleCsv(input) {
         nama_bersih:   p.n,
         kekuatan_mg:   p.k,
         kekuatan_unit: p.u,
-        satuan:        sat,
+        satuan:        sat.toLowerCase(),
         stok:          stok,
-        harga_jual:    hj,
+        harga_jual:    0,
+        hpp_satuan:    hpp_sat,
+        ed_terdekat:   ed,
+        prioritas:     prio,
+        komposisi:     komp,
         is_racikan:    isSolid(sat) && !!p.k
       });
     });
 
     const rac = _csv.filter(function(d) { return d.is_racikan; }).length;
     $('csv-total').textContent = _csv.length + ' obat';
-    $('csv-info').textContent  = ' (' + rac + ' siap racik · ' + (dlm === ';' ? 'format semicolon' : 'format comma') + ')';
-    $('csv-tbody').innerHTML = _csv.filter(function(d) { return d.is_racikan; }).slice(0, 60).map(function(d) {
+    $('csv-info').textContent  = ' (' + rac + ' siap racik · delimiter: "' + delim + '")';
+    $('csv-tbody').innerHTML   = _csv.filter(function(d) { return d.is_racikan; }).slice(0,60).map(function(d) {
       return '<tr style="border-bottom:0.5px solid var(--bd)">' +
         '<td style="padding:5px 8px">' + d.nama_bersih + '</td>' +
         '<td style="padding:5px 8px">' + (d.kekuatan_mg || '-') + ' ' + d.kekuatan_unit + '</td>' +
