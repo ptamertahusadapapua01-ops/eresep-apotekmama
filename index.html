@@ -866,14 +866,23 @@ function startQueue() {
 function loadMasterDrugs() {
   if (S.drugsLoaded || S.drugsLoading) return;
   S.drugsLoading = true;
-  db.collection('drug_master').where('is_racikan', '==', true).get()
+  // Load semua obat tanpa filter — hindari masalah tipe field is_racikan
+  db.collection('drug_master').get()
     .then(function(snap) {
       S.drugs = [];
-      snap.forEach(function(d) { S.drugs.push(Object.assign({ id: d.id }, d.data())); });
+      snap.forEach(function(d) {
+        const data = d.data();
+        // Filter client-side: harus punya kekuatan (mg) dan satuan solid ATAU is_racikan = true
+        const solid = isSolid(data.satuan) && data.kekuatan_mg;
+        if (solid || data.is_racikan === true) {
+          S.drugs.push(Object.assign({ id: d.id }, data));
+        }
+      });
       S.drugs.sort(function(a, b) { return (a.nama_bersih || '').localeCompare(b.nama_bersih || ''); });
       S.drugsLoaded = true;
       S.drugsLoading = false;
       console.log('Master drugs loaded:', S.drugs.length);
+      toast('Data obat siap: ' + S.drugs.length + ' item', 2000);
     })
     .catch(function(e) {
       S.drugsLoading = false;
