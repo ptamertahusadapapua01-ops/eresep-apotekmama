@@ -436,6 +436,18 @@ function fmtDate(ts) {
   return d.getDate() + ' ' + M[d.getMonth()] + ' ' + d.getFullYear();
 }
 
+function toRoman(n) {
+  n = parseInt(n) || 0;
+  if (n <= 0 || n > 399) return String(n);
+  const v = [100,90,50,40,10,9,5,4,1];
+  const s = ['C','XC','L','XL','X','IX','V','IV','I'];
+  var r = '';
+  for (var i = 0; i < v.length; i++) {
+    while (n >= v[i]) { r += s[i]; n -= v[i]; }
+  }
+  return r;
+}
+
 function parseDrug(raw) {
   const m = raw.match(/(\d+[,.]?\d*)\s*(MG|MCG|IU|ML|GRAM|G)\b/i);
   const k = m ? parseFloat(m[1].replace(',', '.')) : null;
@@ -1193,7 +1205,7 @@ function printRx(rxId) {
       const sedLat = { puyer: 'pulv.', kapsul: 'caps.', salep: 'ung.' }[sed] || sed;
       rHtml += '<div class="p-r"><div class="p-r-inv">R/</div>' +
         (it.obat || []).map(function(o) { return '<div class="p-r-line">' + o.nama + ' &nbsp; ' + o.dosis + ' ' + o.unit + '</div>'; }).join('') +
-        '<div class="p-r-line">m.f. ' + sedLat + ' d.t.d. No. ' + bg + '</div>' +
+        '<div class="p-r-line">m.f. ' + sedLat + ' d.t.d. No. ' + toRoman(bg) + '</div>' +
         '<div class="p-signa">S ' + fr + ' d.d. ' + sedLat + ' ' + dc + '</div>' +
         '<div class="p-paraf">paraf dokter</div><div style="clear:both"></div></div>';
     } else {
