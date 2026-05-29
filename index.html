@@ -131,10 +131,10 @@ button:disabled{opacity:0.4;cursor:not-allowed}
 @media print{body>*:not(#print-area){display:none!important}#print-area{display:block!important}.no-print{display:none!important}}
 #print-area{display:none}
 .rx-print{font-family:'Times New Roman',serif;font-size:12pt;max-width:14cm;margin:0 auto;padding:0.8cm}
-.rx-print .p-hdr{border-bottom:1.5px solid #000;padding-bottom:7pt;margin-bottom:10pt}
+.rx-print .p-hdr{border-bottom:1.5px solid #000;padding-bottom:7pt;margin-bottom:10pt;text-align:center}
 .rx-print .p-doc-name{font-size:14pt;font-weight:bold}
-.rx-print .p-doc-det{font-size:10pt;margin-top:2pt;color:#222}
-.rx-print .p-dateline{text-align:right;font-size:11pt;margin-bottom:12pt}
+.rx-print .p-doc-det{font-size:10pt;margin-top:2pt;color:#222;letter-spacing:0.3px}
+.rx-print .p-dateline{display:flex;justify-content:space-between;font-size:11pt;margin-bottom:12pt}
 .rx-print .p-r{margin-bottom:14pt;clear:both}
 .rx-print .p-r-inv{font-size:12pt;font-weight:bold}
 .rx-print .p-r-line{font-size:11pt;margin-left:18pt;line-height:1.7}
@@ -391,7 +391,7 @@ const S = {
   drugsLoaded: false,
   drugsLoading: false,
   histFrom: 'apotek', histAll: [],
-  tambahan: {}, qFirstLoad: true, notifiedIds: null
+  tambahan: {}, selData: {}, qFirstLoad: true, notifiedIds: null
 };
 let _idc = 0;
 const uid = () => 'i' + (++_idc);
@@ -489,19 +489,28 @@ function docInisialFrom(nama) {
 function playBeep() {
   try {
     var ctx = new (window.AudioContext || window.webkitAudioContext)();
-    [880, 1100].forEach(function(freq, ti) {
+    [0, 180, 360].forEach(function(delay) {
       setTimeout(function() {
         try {
           var o = ctx.createOscillator(), g = ctx.createGain();
           o.connect(g); g.connect(ctx.destination);
-          o.frequency.value = freq;
-          g.gain.setValueAtTime(0.3, ctx.currentTime);
-          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-          o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.35);
+          o.type = 'sine';
+          o.frequency.value = 1320;
+          g.gain.setValueAtTime(0, ctx.currentTime);
+          g.gain.linearRampToValueAtTime(0.75, ctx.currentTime + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.16);
+          o.start(ctx.currentTime); o.stop(ctx.currentTime + 0.16);
         } catch(e2) {}
-      }, ti * 280);
+      }, delay);
     });
   } catch(e) { console.log('beep skip'); }
+}
+function fmtSpesialis(sp) {
+  if (!sp || !sp.trim()) return 'DOKTER UMUM';
+  const s = sp.trim().toLowerCase();
+  if (s === 'umum' || s === 'dokter umum' || s === 'gp' || s === 'general practitioner') return 'DOKTER UMUM';
+  if (/^sp[.\s]/.test(s) || s.startsWith('spesialis ')) return sp.trim().toUpperCase();
+  return 'SPESIALIS ' + sp.trim().toUpperCase();
 }
 
 function normItems(rx) {
@@ -975,7 +984,7 @@ function renderQueue() {
       if (it.tipe === 'racikan') {
         const sedStr = (it.sediaan || []).join(', ') || '-';
         let drugsHtml = '';
-        if (rx.status !== 'selesai') {
+        if (rx.status === 'diproses') {
           drugsHtml = '<div class="apo-hdr"><span>Nama Obat</span><span>Dosis/bgk</span><span>Pilih Sediaan</span><span>Jml Tablet</span><span>Stok</span></div>';
           (it.obat || []).forEach(function(d, di) {
             drugsHtml +=
@@ -990,7 +999,7 @@ function renderQueue() {
               '<div class="sdrop-list" id="sl-' + rx.id + '-' + ii + '-' + di + '"></div>' +
               '<input type="hidden" id="sv-' + rx.id + '-' + ii + '-' + di + '">' +
               '</div>' +
-              '<span id="jt-' + rx.id + '-' + ii + '-' + di + '" style="font-size:15px;font-weight:700;color:var(--gray)">-</span>' +
+              '<span id="jt-' + rx.id + '-' + ii + '-' + di + '" style="font-size:26px;font-weight:700;color:var(--gray)">-</span>' +
               '<span id="sk-' + rx.id + '-' + ii + '-' + di + '" style="font-size:11px;color:var(--gray)">-</span>' +
               '</div>';
           });
@@ -1033,7 +1042,7 @@ function renderQueue() {
       btnHtml + '</div>';
     list.appendChild(card);
     if (rx.status === 'diproses') {
-      (function(rxid) { setTimeout(function() { renderTambahan(rxid); }, 0); })(rx.id);
+      (function(rxid) { setTimeout(function() { renderTambahan(rxid); restoreSelData(rxid); }, 0); })(rx.id);
     }
   });
 }
@@ -1112,6 +1121,8 @@ function selSd(rxId, ii, di, m, dosis, unit, bungkus) {
   const hid = $('sv-' + rxId + '-' + ii + '-' + di);
   if (inp) inp.value = m.nama_farmacare;
   if (hid) hid.value = JSON.stringify({ k: m.kekuatan_mg, stok: m.stok, label: m.nama_farmacare, sat: m.satuan });
+  if (!S.selData[rxId]) S.selData[rxId] = {};
+  S.selData[rxId][ii + '-' + di] = { k: m.kekuatan_mg, stok: m.stok, label: m.nama_farmacare, sat: m.satuan };
   closeSd(rxId, ii, di);
   const k = m.kekuatan_mg;
   if (k && dosis && bungkus) {
@@ -1119,7 +1130,12 @@ function selSd(rxId, ii, di, m, dosis, unit, bungkus) {
     const kurang = jml > m.stok;
     const jtEl = $('jt-' + rxId + '-' + ii + '-' + di);
     const skEl = $('sk-' + rxId + '-' + ii + '-' + di);
-    if (jtEl) { jtEl.textContent = jml + ' ' + m.satuan; jtEl.style.color = kurang ? 'var(--red)' : 'var(--green)'; }
+    if (jtEl) {
+      jtEl.textContent = jml + ' ' + m.satuan;
+      jtEl.style.color = kurang ? 'var(--red)' : 'var(--green)';
+      jtEl.style.fontSize = '26px';
+      jtEl.style.fontWeight = '700';
+    }
     if (skEl) { skEl.textContent = (kurang ? 'Kurang ' : 'Ok ') + 'stok: ' + m.stok; skEl.style.color = kurang ? 'var(--red)' : 'var(--gray)'; }
     chkWarn(rxId, ii, bungkus);
   }
@@ -1171,8 +1187,13 @@ function selesaiRx(id) {
   });
   const tambahan_kasir = (S.tambahan[id] || [])
     .filter(function(t) { return (t.nama || '').trim(); })
-    .map(function(t) { return { nama: t.nama.trim(), jumlah: parseInt(t.jumlah) || 1 }; });
+    .map(function(t) {
+      const item = { nama: t.nama.trim(), jumlah: parseInt(t.jumlah) || 1 };
+      if (t.satuan) item.satuan = t.satuan;
+      return item;
+    });
   delete S.tambahan[id];
+  delete S.selData[id];
   db.collection('prescriptions').doc(id).update({ status: 'selesai', selesai_at: firebase.firestore.FieldValue.serverTimestamp(), sediaan_dipilih: sel, tambahan_kasir: tambahan_kasir })
     .then(function() { toast('Resep selesai diproses'); })
     .catch(function(e) { toast('Gagal: ' + e.message); });
@@ -1224,12 +1245,12 @@ function printRx(rxId) {
   $('print-area').innerHTML = '<div class="rx-print">' +
     '<div class="p-hdr">' +
     '<div class="p-doc-name">' + (doc.nama || '') + '</div>' +
-    (doc.spesialisasi ? '<div class="p-doc-det">' + doc.spesialisasi + '</div>' : '') +
+    '<div class="p-doc-det">' + fmtSpesialis(doc.spesialisasi) + '</div>' +
     '<div class="p-doc-det">SIP: ' + (doc.sip || '-') + '</div>' +
     '<div class="p-doc-det">' + (doc.alamat_praktik || '') + '</div>' +
     (doc.hari_praktik ? '<div class="p-doc-det">Praktik: ' + doc.hari_praktik + '</div>' : '') +
     '</div>' +
-    '<div class="p-dateline">Timika, ' + fmtDate(rx.created_at) + ' &nbsp;&nbsp; No: ' + (rx.nomor_resep || '') + '</div>' +
+    '<div class="p-dateline"><span>Timika, ' + fmtDate(rx.created_at) + '</span><span>No: ' + (rx.nomor_resep || '') + '</span></div>' +
     rHtml +
     '<div class="p-footer">' +
     '<div><b>Pro</b>&nbsp;&nbsp;&nbsp;: ' + (p.nama || '-') + '</div>' +
@@ -1465,6 +1486,42 @@ function deleteRxAll() {
     .catch(function(e) { st.textContent = 'Gagal: ' + e.message; });
 }
 
+// ── RESTORE SEL DATA ─────────────────────
+function restoreSelData(rxId) {
+  const sel = S.selData[rxId];
+  if (!sel) return;
+  const rx = S.prescriptions.find(function(r) { return r.id === rxId; });
+  if (!rx) return;
+  normItems(rx).forEach(function(it, ii) {
+    if (it.tipe !== 'racikan') return;
+    (it.obat || []).forEach(function(d, di) {
+      const saved = sel[ii + '-' + di];
+      if (!saved) return;
+      const inp = document.querySelector('#sw-' + rxId + '-' + ii + '-' + di + ' .sdrop-inp');
+      const hid = $('sv-' + rxId + '-' + ii + '-' + di);
+      const jtEl = $('jt-' + rxId + '-' + ii + '-' + di);
+      const skEl = $('sk-' + rxId + '-' + ii + '-' + di);
+      if (inp) inp.value = saved.label;
+      if (hid) hid.value = JSON.stringify({ k: saved.k, stok: saved.stok, label: saved.label, sat: saved.sat });
+      if (saved.k && d.dosis && it.jumlah_bungkus) {
+        const jml = parseFloat(((d.dosis * it.jumlah_bungkus) / saved.k).toFixed(2));
+        const kurang = jml > saved.stok;
+        if (jtEl) {
+          jtEl.textContent = jml + ' ' + saved.sat;
+          jtEl.style.color = kurang ? 'var(--red)' : 'var(--green)';
+          jtEl.style.fontSize = '26px';
+          jtEl.style.fontWeight = '700';
+        }
+        if (skEl) {
+          skEl.textContent = (kurang ? 'Kurang ' : 'Ok ') + 'stok: ' + saved.stok;
+          skEl.style.color = kurang ? 'var(--red)' : 'var(--gray)';
+        }
+      }
+    });
+    chkWarn(rxId, ii, it.jumlah_bungkus);
+  });
+}
+
 // ── TAMBAHAN KASIR ────────────────────────
 function addTambahan(rxId) {
   if (!S.tambahan[rxId]) S.tambahan[rxId] = [];
@@ -1488,9 +1545,14 @@ function renderTambahan(rxId) {
   if (items.length) {
     items.forEach(function(item, i) {
       h += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">' +
-        '<input value="' + (item.nama || '').replace(/"/g, '&quot;') + '" placeholder="Nama item / obat bebas..." ' +
-        'style="flex:2;font-size:12px;padding:5px 8px;border:0.5px solid var(--bd2);border-radius:var(--r-sm)" ' +
-        'oninput="upTambahan(\'' + rxId + '\',' + i + ',\'nama\',this.value)">' +
+        '<div class="sdrop" style="flex:2;position:relative">' +
+        '<input id="tmb-inp-' + rxId + '-' + i + '" class="sdrop-inp" type="text" ' +
+        'value="' + (item.nama || '').replace(/"/g, '&quot;') + '" ' +
+        'placeholder="Ketik nama obat / alkes..." ' +
+        'oninput="filterTmb(\'' + rxId + '\',' + i + ',this.value);upTambahan(\'' + rxId + '\',' + i + ',\'nama\',this.value)" ' +
+        'onblur="setTimeout(function(){closeTmbDrop(\'' + rxId + '\',' + i + ')},200)">' +
+        '<div class="sdrop-list" id="tmb-sl-' + rxId + '-' + i + '" style="display:none"></div>' +
+        '</div>' +
         '<input type="number" value="' + (item.jumlah || 1) + '" min="1" placeholder="Jml" ' +
         'style="width:60px;font-size:12px;padding:5px 8px;border:0.5px solid var(--bd2);border-radius:var(--r-sm)" ' +
         'oninput="upTambahan(\'' + rxId + '\',' + i + ',\'jumlah\',parseInt(this.value)||1)">' +
@@ -1501,6 +1563,46 @@ function renderTambahan(rxId) {
     h += '<div style="font-size:12px;color:var(--gray);padding:2px 0">Belum ada item tambahan</div>';
   }
   el.innerHTML = h;
+}
+
+function filterTmb(rxId, idx, val) {
+  const list = $('tmb-sl-' + rxId + '-' + idx);
+  if (!list) return;
+  if (!val || val.length < 2) { list.style.display = 'none'; return; }
+  loadMasterDrugs();
+  if (!S.drugsLoaded) { list.style.display = 'none'; return; }
+  const q = val.toLowerCase();
+  const matches = S.drugs.filter(function(d) {
+    return (d.nama_farmacare || '').toLowerCase().indexOf(q) >= 0 ||
+           (d.nama_bersih || '').toLowerCase().indexOf(q) >= 0;
+  }).slice(0, 12);
+  if (!matches.length) { list.style.display = 'none'; return; }
+  list.innerHTML = matches.map(function(d) {
+    const sn = (d.nama_farmacare || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    const ss = (d.satuan || '').replace(/'/g,"\\'");
+    return '<div class="sdrop-item" onmousedown="selectTmb(\'' + rxId + '\',' + idx + ',\'' + sn + '\',\'' + ss + '\')">' +
+      '<span>' + (d.nama_farmacare || '') + '</span>' +
+      '<span style="font-size:10px;color:var(--gray)">' + (d.satuan || '') + ' &nbsp;·&nbsp; stok: ' + (d.stok || 0) + '</span>' +
+      '</div>';
+  }).join('');
+  list.style.display = 'block';
+}
+function selectTmb(rxId, idx, nama, satuan) {
+  if (S.tambahan[rxId] && S.tambahan[rxId][idx] !== undefined) {
+    S.tambahan[rxId][idx].nama   = nama;
+    S.tambahan[rxId][idx].satuan = satuan;
+  }
+  const inp  = $('tmb-inp-' + rxId + '-' + idx);
+  const list = $('tmb-sl-'  + rxId + '-' + idx);
+  if (inp)  inp.value          = nama;
+  if (list) list.style.display = 'none';
+}
+function closeTmbDrop(rxId, idx) {
+  const list = $('tmb-sl-' + rxId + '-' + idx);
+  if (list) list.style.display = 'none';
+  const inp = $('tmb-inp-' + rxId + '-' + idx);
+  if (inp && S.tambahan[rxId] && S.tambahan[rxId][idx] !== undefined)
+    S.tambahan[rxId][idx].nama = inp.value;
 }
 
 // ── CSV IMPORT ────────────────────────────
