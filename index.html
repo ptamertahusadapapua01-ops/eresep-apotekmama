@@ -1165,7 +1165,7 @@ function selesaiRx(id) {
       try {
         const s = JSON.parse(hid.value);
         const jml = parseFloat(((d.dosis * it.jumlah_bungkus) / s.k).toFixed(2));
-        sel.push({ _item_idx: ii, nama: d.nama, label: s.label, jml_tablet: jml });
+        sel.push({ _item_idx: ii, nama: d.nama, label: s.label, sat: s.sat || '', jml_tablet: jml });
       } catch(e) {}
     });
   });
@@ -1309,7 +1309,17 @@ function renderHistory() {
       normItems(rx).forEach(function(it, ii) {
         if (it.tipe === 'racikan') {
           h += '<div style="margin-bottom:8px"><b>Racikan ' + (ii + 1) + ': ' + it.nama_racikan + '</b> (' + it.jumlah_bungkus + ' bgs, ' + it.frekuensi + 'x' + it.dosis_per_kali + '/hari)<br>';
-          h += (it.obat || []).map(function(o) { return '&nbsp;&nbsp;· ' + o.nama + ' ' + o.dosis + o.unit; }).join('<br>') + '</div>';
+          h += (it.obat || []).map(function(o) { return '&nbsp;&nbsp;· ' + o.nama + ' ' + o.dosis + o.unit; }).join('<br>');
+          const selItem = (rx.sediaan_dipilih || []).filter(function(s) { return s._item_idx === ii; });
+          if (selItem.length) {
+            h += '<div style="margin-top:5px;padding:5px 8px;background:var(--bg2);border-radius:4px;font-size:11px;line-height:1.8">' +
+              '<span style="color:var(--gray);font-weight:500">💊 Diproses:</span><br>' +
+              selItem.map(function(s) {
+                return '&nbsp;&nbsp;· ' + s.label + ' &nbsp;<b>' + s.jml_tablet + ' ' + (s.sat || 'tab') + '</b>';
+              }).join('<br>') +
+              '</div>';
+          }
+          h += '</div>';
         } else {
           h += '<div style="margin-bottom:4px"><b>Obat Jadi:</b> ' + (it.nama || '') + ' ' + (it.dosis || '') + ' ' + (it.frekuensi || '') + ' ' + (it.instruksi || '') + '</div>';
         }
